@@ -192,6 +192,25 @@ Continue? [y/N]: y
    Average speed: 133.68 MB/s
 ```
 
+## 🐍 Python Virtual Environments
+
+**Important**: This tool detects and removes Python virtual environments as cache, which can save **gigabytes** of space:
+
+- **Common patterns detected**: `venv`, `.venv`, `env`, `.env`, `virtualenv`, `conda`, `miniconda`, and many more
+- **Virtual environments are re-installable** with:
+  - `python -m venv venv` (recreate environment)
+  - `pip install -r requirements.txt` (reinstall packages)
+  - `conda env create -f environment.yml` (for conda)
+- **Size impact**: Virtual environments can be 100MB to several GB each
+- **Safety**: Only removes virtual environments within project directories, never system Python
+
+**Example**:
+```
+🗂️  text-generation-webui (Python): 2 cache items (2.1 GB)
+  - /path/to/project/installer_files/env (1.6 GB)     ← Virtual environment
+  - /path/to/project/installer_files/conda (509.4 MB) ← Conda environment
+```
+
 ## 🔧 Build & Installation Options
 
 ### Development Scripts

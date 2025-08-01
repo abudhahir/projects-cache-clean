@@ -13,7 +13,17 @@
       "name": "Python",
       "indicators": ["requirements.txt", "setup.py", "pyproject.toml", "Pipfile"],
       "cache_config": {
-        "directories": ["__pycache__", ".pytest_cache", "dist", "build", ".mypy_cache", ".tox", "venv", ".venv"],
+        "directories": [
+          "__pycache__", ".pytest_cache", "dist", "build", ".mypy_cache", ".tox",
+          "venv", ".venv", "env", ".env", "virtualenv", ".virtualenv",
+          "venv3", "venv2", "python-env", "pyenv", ".pyenv", "py3env",
+          "ENV", "venvs", ".venvs", "envs", ".envs",
+          "conda", "conda-env", "miniconda", "anaconda",
+          "myenv", "dev-env", "test-env", "prod-env", "local-env",
+          "development", "testing", "ml-env", "mlenv", "data-env",
+          ".poetry", "poetry-env",
+          ".pipenv", "pipenv-env"
+        ],
         "files": [],
         "extensions": [".pyc", ".pyo"]
       }

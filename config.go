@@ -112,7 +112,23 @@ func getDefaultConfig() Config {
 				Name:       "Python",
 				Indicators: []string{"requirements.txt", "setup.py", "pyproject.toml", "Pipfile"},
 				CacheConfig: CacheConfig{
-					Directories: []string{"__pycache__", ".pytest_cache", "dist", "build", ".mypy_cache", ".tox", "venv", ".venv"},
+					Directories: []string{
+						// Cache directories
+						"__pycache__", ".pytest_cache", "dist", "build", ".mypy_cache", ".tox",
+						// Virtual environments (completely re-installable)
+						"venv", ".venv", "env", ".env", "virtualenv", ".virtualenv",
+						"venv3", "venv2", "python-env", "pyenv", ".pyenv", "py3env",
+						"ENV", "venvs", ".venvs", "envs", ".envs",
+						// Conda/Anaconda environments
+						"conda", "conda-env", "miniconda", "anaconda",
+						// Common project-specific names
+						"myenv", "dev-env", "test-env", "prod-env", "local-env",
+						"development", "testing", "ml-env", "mlenv", "data-env",
+						// Poetry environments
+						".poetry", "poetry-env",
+						// Pipenv
+						".pipenv", "pipenv-env",
+					},
 					Files:       []string{},
 					Extensions:  []string{".pyc", ".pyo"},
 				},
