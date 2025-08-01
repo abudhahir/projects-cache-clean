@@ -18,6 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Deep recursive removal with proper ordering (files before directories)
   - System command fallback for stubborn cache directories
   - Handles complex nested structures like node_modules efficiently
+- **COMPREHENSIVE VIRTUAL ENVIRONMENT DETECTION**: Python venv as cache
+  - Detects 30+ virtual environment patterns (venv, env, conda, etc.)
+  - Recognizes virtual environments can be GB+ in size
+  - Safely removes only project-local virtual environments
+  - Documented re-installation procedures for user confidence
 
 ### Changed
 - **BALANCED PERFORMANCE IMPROVEMENT**: 10-50x faster project discovery while maintaining 100% accuracy
