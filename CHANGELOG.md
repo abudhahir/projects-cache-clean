@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive error handling with overflow protection
 - Symlink safety to prevent infinite loops
 - Advanced performance benchmarking capabilities
+- **ROBUST CACHE REMOVAL SYSTEM**: Multi-strategy cache directory removal
+  - Automatic permission fixing for read-only cache files
+  - Deep recursive removal with proper ordering (files before directories)
+  - System command fallback for stubborn cache directories
+  - Handles complex nested structures like node_modules efficiently
 
 ### Changed
 - **BALANCED PERFORMANCE IMPROVEMENT**: 10-50x faster project discovery while maintaining 100% accuracy
@@ -30,6 +35,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - TUI mode (`--ui ~/Projects`) now correctly scans specified directory
   - Previously always scanned current directory regardless of argument
   - Fixed missing rootDir field in model struct and hardcoded path in Init() method
+- **CACHE REMOVAL RELIABILITY**: Fixed "directory not empty" errors
+  - Replaced simple os.RemoveAll() with robust multi-strategy removal
+  - Cache directories like node_modules now removed reliably regardless of permissions
+  - Handles read-only files, complex nesting, and permission issues automatically
+- **TUI COLUMN ALIGNMENT**: Fixed layout issues in tree view
+  - Removed layout-breaking prefixes from selected rows
+  - Maintained perfect column alignment across all navigation states
 
 ### Technical Details
 - Enhanced `findProjects()` to skip cache directories during project discovery

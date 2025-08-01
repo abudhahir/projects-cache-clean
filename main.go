@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -487,7 +488,7 @@ func removeCacheItems(items []CacheItem, verbose bool) (int, int64) {
 	removedSize := int64(0)
 
 	for _, item := range items {
-		if err := os.RemoveAll(item.Path); err != nil {
+		if err := forceRemoveCacheDirectory(item.Path, verbose); err != nil {
 			// Always log removal failures, not just in verbose mode
 			fmt.Printf("❌ Failed to remove %s: %v\n", item.Path, err)
 		} else {
@@ -500,6 +501,113 @@ func removeCacheItems(items []CacheItem, verbose bool) (int, int64) {
 	}
 
 	return removedItems, removedSize
+}
+
+// forceRemoveCacheDirectory aggressively removes cache directories with multiple strategies
+func forceRemoveCacheDirectory(path string, verbose bool) error {
+	// Check if path exists
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return nil // Already gone, consider it success
+	}
+
+	// Strategy 1: Try standard RemoveAll first (fastest when it works)
+	if err := os.RemoveAll(path); err == nil {
+		return nil
+	}
+
+	// Strategy 2: Try to fix permissions and retry
+	if err := makeWritableRecursive(path); err == nil {
+		if err := os.RemoveAll(path); err == nil {
+			return nil
+		}
+	}
+
+	// Strategy 3: Manual recursive removal with permission fixing
+	if err := forceRemoveRecursive(path, verbose); err == nil {
+		return nil
+	}
+
+	// Strategy 4: Last resort - try system command (Unix-like systems only)
+	if err := forceRemoveWithSystemCommand(path); err == nil {
+		return nil
+	}
+
+	// If all strategies fail, return the error
+	return fmt.Errorf("all removal strategies failed for cache directory: %s", path)
+}
+
+// makeWritableRecursive makes all files and directories writable
+func makeWritableRecursive(path string) error {
+	return filepath.Walk(path, func(filePath string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil // Skip files we can't access
+		}
+		
+		// Make file/directory writable
+		return os.Chmod(filePath, info.Mode()|0200) // Add write permission
+	})
+}
+
+// forceRemoveRecursive manually removes files and directories with permission fixing
+func forceRemoveRecursive(path string, verbose bool) error {
+	// First pass: fix all permissions
+	filepath.Walk(path, func(filePath string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil // Skip files we can't access
+		}
+		// Make writable and executable (for directories)
+		newMode := info.Mode() | 0200 // Add write permission
+		if info.IsDir() {
+			newMode |= 0100 // Add execute permission for directories
+		}
+		os.Chmod(filePath, newMode)
+		return nil
+	})
+
+	// Second pass: remove everything (start from deepest level)
+	var allPaths []string
+	filepath.Walk(path, func(filePath string, info os.FileInfo, err error) error {
+		if err == nil {
+			allPaths = append(allPaths, filePath)
+		}
+		return nil
+	})
+
+	// Sort paths by depth (deepest first) to avoid "directory not empty" errors
+	// Reverse the slice so we process deepest paths first
+	for i := len(allPaths) - 1; i >= 0; i-- {
+		filePath := allPaths[i]
+		if info, err := os.Stat(filePath); err == nil {
+			if info.IsDir() {
+				if err := os.Remove(filePath); err != nil && verbose {
+					fmt.Printf("⚠️  Warning: Cannot remove directory %s: %v\n", filePath, err)
+				}
+			} else {
+				if err := os.Remove(filePath); err != nil && verbose {
+					fmt.Printf("⚠️  Warning: Cannot remove file %s: %v\n", filePath, err)
+				}
+			}
+		}
+	}
+
+	// Final check: is the main directory gone?
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return nil // Success!
+	}
+	
+	return fmt.Errorf("directory still exists after manual removal")
+}
+
+// forceRemoveWithSystemCommand uses system commands as last resort (Unix-like systems)
+func forceRemoveWithSystemCommand(path string) error {
+	// Only try this on Unix-like systems
+	if filepath.Separator != '/' {
+		return fmt.Errorf("system command removal not supported on this platform")
+	}
+
+	// Use rm -rf as last resort for cache directories
+	cmd := exec.Command("rm", "-rf", path)
+	return cmd.Run()
 }
 
 func formatBytes(bytes int64) string {
