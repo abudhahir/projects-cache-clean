@@ -1,21 +1,21 @@
 # 🧹 Cache Remover Utility
 
-A blazing-fast, Go-powered cache removal utility that efficiently scans project directories and removes rebuildable cache files across multiple technology stacks.
+A Go-based utility for removing cache files and directories from software projects across multiple technology stacks.
 
-## ✨ Key Features
+## Key Features
 
-- **🚀 Multi-language Support**: Node.js, Python, Java/Maven, Gradle, Go, Rust, Angular, Flutter, Swift/iOS
-- **⚡ 10-100x Performance**: Intelligent cache directory skipping optimization
-- **🛡️ Safe Operations**: Dry-run mode and interactive confirmations
-- **🖥️ Beautiful TUI**: Interactive terminal interface for project selection
-- **🐍 Virtual Environment Detection**: Detects 30+ Python venv patterns (GB+ space savings)
-- **🔧 Robust Cache Removal**: Multi-strategy removal handles "directory not empty" errors
-- **🪟 Native Windows Support**: Professional installation with PATH integration
-- **⚙️ Configurable**: JSON-based configuration system for custom project types
-- **🔧 Advanced CLI**: Rich command-line options and project type management
-- **💾 Zero Dependencies**: Single Go binary, no external requirements
+- **Multi-language Support**: Node.js, Python, Java/Maven, Gradle, Go, Rust, Angular, Flutter, Swift/iOS
+- **Performance Optimization**: Cache directory skipping during project scanning
+- **Safe Operations**: Dry-run mode and interactive confirmations
+- **Terminal Interface**: Interactive TUI for project selection
+- **Virtual Environment Detection**: Supports 30+ Python virtual environment patterns
+- **Error Handling**: Multi-strategy removal for problematic cache directories
+- **Cross-platform**: Windows installation scripts and Unix/Linux compatibility
+- **Configurable**: JSON-based configuration for custom project types
+- **Command Line Interface**: Comprehensive CLI options
+- **Self-contained**: Single binary with no external dependencies
 
-## 🚀 Quick Start
+## Quick Start
 
 ```bash
 # Install
@@ -67,46 +67,47 @@ go build -o cache-remover-utility
 | **Flutter** | build, .dart_tool | 20-100 MB |
 | **Swift/iOS** | build, DerivedData, .build | 50-300 MB |
 
-💡 **Tip**: Use `./cache-remover --list-types` to see all supported project types and their cache patterns.
+Use `./cache-remover --list-types` to see all supported project types and their cache patterns.
 
-## ⚡ Performance Highlights
+## Implementation Details
 
-**Smart Scanning Optimization**: Revolutionary performance improvements that maintain 100% accuracy:
+**Scanning Optimization**: 
+- Skips traversing cache directories during project discovery
+- Recursively detects cache directories within project trees
+- Handles nested cache structures (e.g., __pycache__ in subdirectories)
 
-- **Project Discovery Optimization**: Skips walking into cache directories during initial project scanning
-- **Recursive Cache Detection**: Finds nested cache directories anywhere in project tree (fixed __pycache__ issue)
-- **Robust Cache Removal**: 4-strategy removal system handles "directory not empty" errors  
-- **Virtual Environment Detection**: Expanded from 2 to 30+ patterns, detects GB+ of additional cache
-- **Accurate Size Calculation**: Uses complete recursive scanning for precise cache size measurements
-- **Configuration Consistency**: Eliminates dry-run vs actual execution discrepancies
+**Cache Removal**: 
+- Uses multiple removal strategies for directories that fail standard deletion
+- Fixes file permissions when needed
+- Falls back to system commands for stubborn directories
 
-**Performance Benchmarks**:
-```
-Recent Improvements (This Release):
-- Cache detection: Now finds nested directories (was missing __pycache__ in subdirs)
-- Virtual environments: Detects 1.7+ GB additional cache (text-generation-webui example)
-- Cache removal: Handles "directory not empty" errors with 4-strategy system
-- Project discovery: 10-50x faster by skipping cache directories
-- Configuration: Eliminates dry-run vs execution discrepancies (Flutter fix)
-- Size calculations: 100% accurate with complete recursive scanning
-```
+**Virtual Environment Handling**:
+- Detects common patterns: venv, .venv, env, conda, poetry-env, etc.
+- Supports project-specific naming conventions
+- Treats virtual environments as rebuildable cache
+
+**Recent Improvements**:
+- Fixed configuration inconsistencies between dry-run and execution modes
+- Added recursive cache directory detection
+- Expanded virtual environment pattern support
+- Improved error handling for "directory not empty" scenarios
 
 **Technical Approach**:
-- **Smart Discovery**: Treats cache directories as boundaries during project scanning
-- **Recursive Detection**: Finds cache directories anywhere in project tree (not just root)
-- **Multi-Strategy Removal**: 4 fallback methods handle stubborn cache directories
-- **Accurate Measurement**: Full recursive walks ensure precise size calculations
-- **Cross-Platform**: Native Windows installation with Unix/Linux compatibility
-- **Overflow Protection**: Safe handling of extremely large directories
+- Treats cache directories as boundaries during project scanning
+- Finds cache directories at any depth within project trees
+- Uses multiple fallback methods for problematic directory removal
+- Performs complete recursive walks for accurate size calculations
+- Supports both Windows and Unix/Linux platforms
+- Includes protection against integer overflow for large directories
 
-## 🛡️ Safety Features
+## Safety Features
 
-- **🔍 Dry-run mode** - Preview without changes
-- **✋ Confirmation prompts** - Never removes without asking
-- **🎯 Project detection** - Only removes from recognized project types
-- **⚠️ Error handling** - Graceful permission and access handling
+- **Dry-run mode**: Preview operations without making changes
+- **Confirmation prompts**: Requires user confirmation before removal
+- **Project detection**: Only operates on recognized project types
+- **Error handling**: Handles permission errors and access issues gracefully
 
-## 💨 Usage Examples
+## Usage Examples
 
 ```bash
 # Most common usage patterns
@@ -206,17 +207,17 @@ Continue? [y/N]: y
    Average speed: 133.68 MB/s
 ```
 
-## 🐍 Python Virtual Environments
+## Python Virtual Environments
 
-**Important**: This tool detects and removes Python virtual environments as cache, which can save **gigabytes** of space:
+This tool treats Python virtual environments as cache since they can be recreated from requirements files:
 
-- **Common patterns detected**: `venv`, `.venv`, `env`, `.env`, `virtualenv`, `conda`, `miniconda`, and many more
-- **Virtual environments are re-installable** with:
-  - `python -m venv venv` (recreate environment)
+- **Detected patterns**: `venv`, `.venv`, `env`, `.env`, `virtualenv`, `conda`, `miniconda`, and other common names
+- **Recreating environments**:
+  - `python -m venv venv` (create new environment)
   - `pip install -r requirements.txt` (reinstall packages)
-  - `conda env create -f environment.yml` (for conda)
-- **Size impact**: Virtual environments can be 100MB to several GB each
-- **Safety**: Only removes virtual environments within project directories, never system Python
+  - `conda env create -f environment.yml` (for conda environments)
+- **Size impact**: Virtual environments range from 100MB to several GB
+- **Scope**: Only removes virtual environments within project directories
 
 **Example**:
 ```
@@ -225,10 +226,10 @@ Continue? [y/N]: y
   - /path/to/project/installer_files/conda (509.4 MB) ← Conda environment
 ```
 
-## 🔧 Build & Installation Options
+## Build & Installation
 
-### 🪟 Windows Users
-For complete Windows installation instructions, see **[WINDOWS.md](WINDOWS.md)**
+### Windows Installation
+For complete Windows installation instructions, see **[WINDOWS.md](docs/WINDOWS.md)**
 
 **Quick Windows Install:**
 ```cmd
@@ -245,7 +246,7 @@ make -f Makefile.windows install-user # User installation (no admin)
 make -f Makefile.windows help         # Show all Windows options
 ```
 
-### 🐧 Unix/Linux/macOS
+### Unix/Linux/macOS
 
 ### Development Scripts
 ```bash
