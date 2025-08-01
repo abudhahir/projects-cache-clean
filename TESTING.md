@@ -15,7 +15,14 @@
 
 ### 1. **Build the Application**
 ```bash
-go build -o cache-remover
+# Option 1: Use build script (recommended)
+./build.sh
+
+# Option 2: Use Makefile
+make build
+
+# Option 3: Manual build
+go build -o cache-remover-utility
 ```
 
 ### 2. **Create Test Projects**
@@ -50,7 +57,7 @@ cd ../..
 
 ### **Test 1: Dry Run Mode (Safe Preview)**
 ```bash
-./cache-remover --dry-run test-area/
+./cache-remover-utility --dry-run test-area/
 ```
 **Expected Output:**
 - Shows found projects (node-project, python-project, java-project)
@@ -60,40 +67,42 @@ cd ../..
 
 ### **Test 2: Verbose Mode**
 ```bash
-./cache-remover --dry-run --verbose test-area/
+./cache-remover-utility --dry-run --verbose test-area/
 ```
 **Expected Output:**
 - More detailed output
 - Shows "Skipping cache directory" messages
 - Shows warnings for permission errors (if any)
 
-### **Test 3: Interactive TUI Mode**
+### **Test 3: Interactive Tree View Mode**
 ```bash
-./cache-remover --ui test-area/
+./cache-remover-utility --ui test-area/
 ```
 **Expected Behavior:**
 1. **Loading Screen**: Shows spinner while scanning
-2. **Project List**: Shows all 3 test projects with cache sizes
-3. **Navigation**: 
-   - Use ↑/↓ or j/k to move
-   - Press Space to select/deselect projects
-   - Press 'a' to select all
-   - Press 'd' to deselect all
-4. **Details View**: Press 'v' on a project to see cache breakdown
-5. **Cleaning**: 
+2. **Tree View**: Shows hierarchical directory structure (NEW!)
+3. **Tree Navigation**: 
+   - Use ↑/↓ or j/k to navigate up/down
+   - Use ←/→ or h/l to collapse/expand directories
+   - Press Space to select projects or directories
+   - Press 't' to toggle between tree and list view
+   - Press 'a' to select all, 'd' to deselect all
+4. **Directory Selection**: Select entire directory trees at once
+5. **Details View**: Press 'v' on a project to see cache breakdown
+6. **Cleaning**: 
    - Press 'c' to clean selected projects
    - Confirm with 'y'
    - See "Cleaning [project-name]..." messages
    - View final statistics
-6. **Exit**: Press 'q' or Esc
+7. **Exit**: Press 'q' or Esc
 
 ### **Test 4: Command Line Cleanup**
 ```bash
 # First verify what will be removed
-./cache-remover --dry-run test-area/
+./cache-remover-utility --dry-run test-area/
 
 # Then actually clean (will ask for confirmation)
-./cache-remover test-area/
+./cache-remover-utility test-area/
 ```
 **Expected:**
 - Shows summary of what will be removed
@@ -103,10 +112,10 @@ cd ../..
 ### **Test 5: Configuration Testing**
 ```bash
 # List all supported project types
-./cache-remover --list-types
+./cache-remover-utility --list-types
 
 # Save configuration file
-./cache-remover --save-config
+./cache-remover-utility --save-config
 
 # Check the generated file
 cat cache-remover-config.json
@@ -115,21 +124,21 @@ cat cache-remover-config.json
 ### **Test 6: Performance Testing**
 ```bash
 # Test with different worker counts
-./cache-remover --workers 8 --verbose test-area/
+./cache-remover-utility --workers 8 --verbose test-area/
 
 # Test depth limiting
-./cache-remover --max-depth 2 --verbose test-area/
+./cache-remover-utility --max-depth 2 --verbose test-area/
 ```
 
 ### **Test 7: Error Handling**
 ```bash
 # Test with non-existent directory
-./cache-remover /non/existent/path
+./cache-remover-utility /non/existent/path
 
 # Test with permission issues (if on Unix/Linux)
 mkdir -p test-area/restricted
 chmod 000 test-area/restricted
-./cache-remover --verbose test-area/
+./cache-remover-utility --verbose test-area/
 chmod 755 test-area/restricted  # Restore permissions
 ```
 
@@ -190,14 +199,14 @@ for i in {1..10}; do
 done
 
 # Test performance
-time ./cache-remover --dry-run test-area/
+time ./cache-remover-utility --dry-run test-area/
 ```
 
 ### **Test Custom Configuration**
 ```bash
 # Edit cache-remover-config.json to add custom project type
 # Then test if it's detected
-./cache-remover --dry-run test-area/
+./cache-remover-utility --dry-run test-area/
 ```
 
 ## 🧹 **Cleanup After Testing**
@@ -210,7 +219,25 @@ rm -f cache-remover-config.json
 ## 💡 **Tips**
 - Always use `--dry-run` first to preview changes
 - Test in a separate directory, not your actual projects
-- The TUI mode provides the best user experience
+- The **tree view TUI** provides the best user experience (try `--ui`)
+- Use `./dev.sh demo` to quickly test with generated demo projects
+- Use `./run.sh` for interactive menu with all options
 - Check the exit code: `echo $?` (should be 0 for success)
+
+## 🛠️ **Developer Testing**
+
+```bash
+# Run all tests
+./dev.sh test
+
+# Run tests with race detection
+./dev.sh test-race
+
+# Run linting checks
+./dev.sh lint
+
+# Build and test demo
+./dev.sh demo
+```
 
 Let me know if you need help with any specific test scenario!

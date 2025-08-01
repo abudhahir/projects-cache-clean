@@ -5,26 +5,63 @@ Get up and running with Cache Remover in under 2 minutes!
 ## 🚀 Installation
 
 ```bash
-# Clone and build
+# Clone the repository
 git clone https://github.com/abudhahir/projects-cache-clean.git
 cd projects-cache-clean
-go build -o cache-remover
 
-# Or install Go first if needed
+# Option 1: Use build script (recommended)
+./build.sh
+
+# Option 2: Use Makefile
+make build
+
+# Option 3: Manual build
+go build -o cache-remover-utility
+
+# Install Go first if needed
 ./install-go.sh
+```
+
+## 📦 System Installation (Optional)
+
+```bash
+# Install to system PATH for global access
+make install
+# OR
+sudo cp cache-remover-utility /usr/local/bin/
+
+# Then use from anywhere:
+cache-remover-utility --ui ~/Projects
+```
+
+## 🏃 Quick Start Options
+
+```bash
+# Option 1: Smart run script with menu
+./run.sh
+
+# Option 2: Direct commands
+./cache-remover-utility --dry-run ~/Projects    # Safe preview
+./cache-remover-utility ~/Projects              # Clean with confirmation  
+./cache-remover-utility --ui ~/Projects         # Interactive tree view
+
+# Option 3: Using make
+make run        # Build and run TUI
+make demo       # Run with demo projects
+make preview    # Dry run current directory
 ```
 
 ## 💨 Most Common Usage
 
 ```bash
 # See what would be cleaned (safe preview)
-./cache-remover -dry-run ~/Projects
+./cache-remover-utility --dry-run ~/Projects
 
 # Clean everything (with confirmation)
-./cache-remover ~/Projects
+./cache-remover-utility ~/Projects
 
-# Interactive selection with beautiful UI
-./cache-remover -ui ~/Projects
+# Interactive tree view (NEW!)
+./cache-remover-utility --ui ~/Projects
 ```
 
 ## 📊 What You'll See
@@ -52,14 +89,24 @@ Found 3 projects
    Processing time: 1.2s
 ```
 
-## 🎯 Essential Commands
+## 🛠️ Development & Build Commands
 
 | Command | Purpose |
 |---------|---------|
-| `./cache-remover ~/Projects` | **Most common** - scan and clean with confirmation |
-| `./cache-remover -dry-run ~/Projects` | **Safe preview** - see what would be removed |
-| `./cache-remover -ui ~/Projects` | **Interactive** - select projects with TUI |
-| `./cache-remover -verbose ~/Projects` | **Detailed** - see all scanning activity |
+| `./build.sh` | **Build** - compile optimized binary |
+| `./run.sh` | **Smart run** - build and run with menu |
+| `./dev.sh demo` | **Demo** - run with generated test projects |
+| `./dev.sh test` | **Test** - run all tests |
+| `make install` | **Install** - install to system PATH |
+
+## 🎯 Essential Usage Commands
+
+| Command | Purpose |
+|---------|---------|
+| `./cache-remover-utility ~/Projects` | **Most common** - scan and clean with confirmation |
+| `./cache-remover-utility --dry-run ~/Projects` | **Safe preview** - see what would be removed |
+| `./cache-remover-utility --ui ~/Projects` | **Interactive tree** - select with TUI |
+| `./cache-remover-utility --verbose ~/Projects` | **Detailed** - see all scanning activity |
 
 ## 🛡️ Safety First
 
@@ -75,33 +122,47 @@ Found 3 projects
 - **Parallel processing** using all CPU cores
 - **Supports all major tech stacks**: Node.js, Python, Java, Go, Rust, Gradle
 
-## 🎯 Interactive TUI Mode
+## 🌳 Interactive Tree View (NEW!)
 
 ```bash
-./cache-remover -ui ~/Projects
+./cache-remover-utility --ui ~/Projects
 ```
 
-**Controls:**
-- `↑↓` - Navigate projects
-- `Space` - Select/deselect project
-- `a` - Select all projects  
+**Tree Navigation:**
+- `↑↓` or `j/k` - Navigate up/down
+- `←→` or `h/l` - Collapse/expand directories
+- `Space` - Select projects or directories
+- `t` - Toggle between tree and list view
+- `a/d` - Select/deselect all
 - `c` - Clean selected projects
 - `q` - Quit
 
-## 🔧 Quick Options
+**Tree Benefits:**
+- See directory hierarchy clearly
+- Select entire directory trees at once
+- Understand project organization
+- Aggregate statistics per directory
+
+## 🔧 Advanced Options
 
 ```bash
 # Scan current directory
-./cache-remover
+./cache-remover-utility
 
 # Limit scan depth
-./cache-remover -max-depth 5 ~/Projects
+./cache-remover-utility --max-depth 5 ~/Projects
 
 # Use more workers for faster processing
-./cache-remover -workers 16 ~/Projects
+./cache-remover-utility --workers 16 ~/Projects
 
 # Ask before each project cleanup
-./cache-remover -interactive ~/Projects
+./cache-remover-utility --interactive ~/Projects
+
+# List all supported project types
+./cache-remover-utility --list-types
+
+# Generate config file for customization
+./cache-remover-utility --save-config
 ```
 
 ## 📋 What Gets Cleaned
@@ -120,11 +181,21 @@ Found 3 projects
 - 🐛 **Issues**: [GitHub Issues](https://github.com/abudhahir/projects-cache-clean/issues)
 - ❓ **Questions**: Check existing issues or create new one
 
-## ⭐ Quick Tip
+## ⭐ Quick Tips
 
 **Start with this command to get familiar:**
 ```bash
-./cache-remover -verbose -dry-run ~/Projects
+./cache-remover-utility --verbose --dry-run ~/Projects
+```
+
+**For the best experience, try the new tree view:**
+```bash 
+./cache-remover-utility --ui ~/Projects
+```
+
+**Use the smart run script for convenience:**
+```bash 
+./run.sh    # Shows interactive menu with all options
 ```
 
 This will show you exactly what the tool finds and would remove, without actually removing anything!
