@@ -47,6 +47,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Dry-run detected 1.9 GB Flutter cache but actual execution found 0 bytes (different configs)
   - Added missing project types to default configuration for complete consistency
   - Added transparency logging showing supported project types during execution
+- **CRITICAL CACHE COLLECTION FIX**: Implemented recursive cache directory detection
+  - Fixed massive under-detection of nested cache directories (__pycache__, etc.)
+  - Eliminated incorrect cache directory skipping during extension file collection
+  - Added recursive search to find cache directories anywhere in project tree (not just root)
+  - Implemented deduplication to prevent double-counting directories vs individual files
+  - Python projects now detect hundreds of MB of additional cache correctly
 
 ### Technical Details
 - Enhanced `findProjects()` to skip cache directories during project discovery
