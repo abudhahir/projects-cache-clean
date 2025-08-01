@@ -24,13 +24,55 @@ echo "=================================================="
 # =============================================================================
 echo -e "\n${YELLOW}🔍 Running pre-flight checks...${NC}"
 
-# Check if VHS is installed
+# Check if VHS is installed, install if missing
 if ! command -v vhs &> /dev/null; then
-    echo -e "${RED}❌ VHS is not installed${NC}"
-    echo "Install with: go install github.com/charmbracelet/vhs@latest"
-    exit 1
+    echo -e "${YELLOW}📦 VHS not found, installing automatically...${NC}"
+    if command -v go &> /dev/null; then
+        go install github.com/charmbracelet/vhs@latest
+        # Add ~/go/bin to PATH if it's not already there
+        export PATH="$HOME/go/bin:$PATH"
+        if command -v vhs &> /dev/null; then
+            echo -e "${GREEN}✅ VHS installed successfully${NC}"
+        else
+            echo -e "${RED}❌ VHS installation failed. Please install manually:${NC}"
+            echo "   go install github.com/charmbracelet/vhs@latest"
+            echo "   export PATH=\"\$HOME/go/bin:\$PATH\""
+            exit 1
+        fi
+    else
+        echo -e "${RED}❌ Go is not installed. Please install Go first:${NC}"
+        echo "   brew install go  # macOS"
+        echo "   apt install golang-go  # Ubuntu"
+        exit 1
+    fi
+else
+    echo -e "${GREEN}✅ VHS found: $(vhs --version)${NC}"
 fi
-echo -e "${GREEN}✅ VHS found: $(vhs --version)${NC}"
+
+# Check if ttyd is installed, install if missing (required by VHS)
+if ! command -v ttyd &> /dev/null; then
+    echo -e "${YELLOW}📦 ttyd not found, installing automatically...${NC}"
+    if command -v brew &> /dev/null; then
+        brew install ttyd
+        if command -v ttyd &> /dev/null; then
+            echo -e "${GREEN}✅ ttyd installed successfully${NC}"
+        else
+            echo -e "${RED}❌ ttyd installation failed${NC}"
+            exit 1
+        fi
+    elif command -v apt &> /dev/null; then
+        sudo apt update && sudo apt install -y ttyd
+        echo -e "${GREEN}✅ ttyd installed via apt${NC}"
+    else
+        echo -e "${RED}❌ Cannot auto-install ttyd. Please install manually:${NC}"
+        echo "   brew install ttyd  # macOS"
+        echo "   apt install ttyd   # Ubuntu"
+        echo "   Or visit: https://github.com/tsl0922/ttyd"
+        exit 1
+    fi
+else
+    echo -e "${GREEN}✅ ttyd found${NC}"
+fi
 
 # Check if cache-remover is built
 if [ ! -f "$ROOT_DIR/cache-remover" ]; then

@@ -1,0 +1,9 @@
+[package]
+name = "rust-cli"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+clap = "4.0"
+serde = { version = "1.0", features = ["derive"] }
+tokio = { version = "1.0", features = ["full"] }
