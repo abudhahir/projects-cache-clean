@@ -309,8 +309,11 @@ func detectProjectType(projectPath string) *ProjectType {
 
 func findCacheItems(projectPath string, config CacheConfig) []CacheItem {
 	var items []CacheItem
+	processedPaths := make(map[string]bool) // Track paths to avoid double-counting
 
+	// First: Collect cache directories (search recursively for cache directory names)
 	for _, dir := range config.Directories {
+		// Check root level first (most common case)
 		dirPath := filepath.Join(projectPath, dir)
 		if size := getDirSize(dirPath); size > 0 {
 			items = append(items, CacheItem{
@@ -318,42 +321,76 @@ func findCacheItems(projectPath string, config CacheConfig) []CacheItem {
 				Size: size,
 				Type: "directory",
 			})
+			processedPaths[dirPath] = true
 		}
+		
+		// Then search recursively for nested cache directories
+		filepath.Walk(projectPath, func(path string, info os.FileInfo, err error) error {
+			if err != nil || !info.IsDir() {
+				return nil
+			}
+			
+			// Skip if already processed
+			if processedPaths[path] {
+				return filepath.SkipDir
+			}
+			
+			// Check if this directory matches a cache directory name
+			if info.Name() == dir {
+				if size := getDirSize(path); size > 0 {
+					items = append(items, CacheItem{
+						Path: path,
+						Size: size,
+						Type: "directory",
+					})
+					processedPaths[path] = true
+					return filepath.SkipDir // Don't traverse into this cache directory
+				}
+			}
+			
+			return nil
+		})
 	}
 
+	// Second: Collect individual cache files
 	for _, file := range config.Files {
 		filePath := filepath.Join(projectPath, file)
-		if info, err := os.Stat(filePath); err == nil && !info.IsDir() {
-			items = append(items, CacheItem{
-				Path: filePath,
-				Size: info.Size(),
-				Type: "file",
-			})
+		if !processedPaths[filePath] {
+			if info, err := os.Stat(filePath); err == nil && !info.IsDir() {
+				items = append(items, CacheItem{
+					Path: filePath,
+					Size: info.Size(),
+					Type: "file",
+				})
+			}
 		}
 	}
 
+	// Third: Collect files by extension (but skip those already inside processed cache directories)
 	if len(config.Extensions) > 0 {
 		filepath.Walk(projectPath, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return nil
 			}
 
-			// Skip cache directories to avoid performance bottlenecks
-			if info.IsDir() {
-				if isCacheDirectory(info.Name()) {
-					return filepath.SkipDir
+			// Skip if this file is inside an already-processed cache directory
+			for processedDir := range processedPaths {
+				if strings.HasPrefix(path, processedDir+string(filepath.Separator)) {
+					return nil // Skip files inside cache directories we already counted
 				}
-				return nil
 			}
 
-			for _, ext := range config.Extensions {
-				if strings.HasSuffix(info.Name(), ext) {
-					items = append(items, CacheItem{
-						Path: path,
-						Size: info.Size(),
-						Type: "file",
-					})
-					break
+			// Process files with matching extensions
+			if !info.IsDir() {
+				for _, ext := range config.Extensions {
+					if strings.HasSuffix(info.Name(), ext) {
+						items = append(items, CacheItem{
+							Path: path,
+							Size: info.Size(),
+							Type: "file",
+						})
+						break
+					}
 				}
 			}
 			return nil
