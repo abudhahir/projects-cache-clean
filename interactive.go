@@ -8,7 +8,6 @@ import (
 	"sort"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
@@ -214,17 +213,6 @@ type cleanCompleteMsg struct {
 	results CleanupStats
 }
 
-// Step B: Cleanup state tracker for progress updates
-type cleanupState struct {
-	projects       []ProjectItem
-	currentIndex   int
-	currentProject string
-	results        CleanupStats
-	isActive       bool
-	mutex          sync.RWMutex
-}
-
-var globalCleanupState *cleanupState
 
 func initialModel(rootDir string) model {
 	s := spinner.New()
@@ -523,82 +511,24 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-// Step B: Cleanup with shared state and periodic progress updates
 func cleanSelectedProjects(projects []ProjectItem) tea.Cmd {
-	// Initialize global cleanup state
-	globalCleanupState = &cleanupState{
-		projects:       projects,
-		currentIndex:   0,
-		currentProject: "Starting cleanup...",
-		results:        CleanupStats{},
-		isActive:       true,
-	}
-	
-	return tea.Batch(
-		// Send initial progress message immediately
-		func() tea.Msg {
-			return cleanProgressMsg{
-				index:          0,
-				progress:       0.0,
-				results:        CleanupStats{},
-				currentProject: "Starting cleanup...",
-				totalProjects:  len(projects),
-				completed:      false,
-			}
-		},
-		// Start periodic progress updates
-		tea.Every(200*time.Millisecond, func(t time.Time) tea.Msg {
-			if globalCleanupState == nil {
-				return nil
-			}
+	return tea.Cmd(func() tea.Msg {
+		var wg sync.WaitGroup
+		results := CleanupStats{}
+		
+		for _, project := range projects {
+			// Send progress update
+			tea.Printf("Cleaning %s...\n", project.Project.Name)
 			
-			globalCleanupState.mutex.RLock()
-			defer globalCleanupState.mutex.RUnlock()
-			
-			if !globalCleanupState.isActive {
-				return nil
-			}
-			
-			return cleanProgressMsg{
-				index:          globalCleanupState.currentIndex,
-				progress:       float64(globalCleanupState.currentIndex) / float64(len(globalCleanupState.projects)),
-				results:        globalCleanupState.results,
-				currentProject: globalCleanupState.currentProject,
-				totalProjects:  len(globalCleanupState.projects),
-				completed:      globalCleanupState.currentIndex >= len(globalCleanupState.projects),
-			}
-		}),
-		// Start the actual cleanup process
-		func() tea.Msg {
-			results := CleanupStats{}
-			
-			for i, project := range projects {
-				// Update shared state
-				globalCleanupState.mutex.Lock()
-				globalCleanupState.currentIndex = i
-				globalCleanupState.currentProject = project.Project.Name
-				globalCleanupState.mutex.Unlock()
-				
-				// Perform cleanup for each project
-				removedItems, removedSize := removeCacheItems(project.CacheItems, false)
-				results.TotalCacheItems += removedItems
-				results.TotalSizeRemoved += removedSize
-				results.TotalProjects++
-				
-				// Update results in shared state
-				globalCleanupState.mutex.Lock()
-				globalCleanupState.results = results
-				globalCleanupState.mutex.Unlock()
-			}
-			
-			// Mark cleanup as complete
-			globalCleanupState.mutex.Lock()
-			globalCleanupState.isActive = false
-			globalCleanupState.mutex.Unlock()
-			
-			return cleanCompleteMsg{results: results}
-		},
-	)
+			removedItems, removedSize := removeCacheItems(project.CacheItems, false)
+			results.TotalCacheItems += removedItems
+			results.TotalSizeRemoved += removedSize
+			results.TotalProjects++
+		}
+		
+		wg.Wait()
+		return cleanCompleteMsg{results: results}
+	})
 }
 
 func (m model) View() string {
