@@ -18,16 +18,24 @@ A blazing-fast, Go-powered cache removal utility that efficiently scans project 
 # Install
 git clone https://github.com/abudhahir/projects-cache-clean.git
 cd projects-cache-clean
-go build -o cache-remover
 
-# Preview what would be cleaned (safe!)
-./cache-remover -dry-run ~/Projects
+# Option 1: Use build scripts (recommended)
+./build.sh              # Build the application
+./run.sh                # Build and run with interactive menu
+./run.sh --ui ~/Projects # Run TUI directly
 
-# Clean with confirmation
-./cache-remover ~/Projects
+# Option 2: Use Makefile
+make build              # Build the application
+make run                # Build and run TUI
+make demo               # Run with demo projects
 
-# Interactive selection with TUI
-./cache-remover -ui ~/Projects
+# Option 3: Manual build
+go build -o cache-remover-utility
+
+# Usage examples
+./cache-remover-utility --dry-run ~/Projects    # Preview (safe!)
+./cache-remover-utility ~/Projects              # Clean with confirmation  
+./cache-remover-utility --ui ~/Projects         # Interactive tree view
 ```
 
 ## 📖 Documentation
@@ -169,14 +177,25 @@ Continue? [y/N]: y
    Average speed: 133.68 MB/s
 ```
 
-## 🔧 Installation Options
+## 🔧 Build & Installation Options
+
+### Development Scripts
+```bash
+# Build and run development tasks
+./dev.sh build         # Build application  
+./dev.sh test           # Run tests
+./dev.sh lint           # Run code linting
+./dev.sh demo           # Run with demo projects
+./dev.sh install        # Install to system
+./dev.sh help           # Show all options
+```
 
 ### Quick Install
 ```bash
 # Build from source
 git clone https://github.com/abudhahir/projects-cache-clean.git
 cd projects-cache-clean
-go build -o cache-remover
+./build.sh
 
 # Install Go first if needed
 ./install-go.sh
@@ -184,9 +203,12 @@ go build -o cache-remover
 
 ### System Install
 ```bash
-# Add to PATH for global access
-sudo mv cache-remover /usr/local/bin/
-cache-remover ~/Projects
+# Using make
+make install
+
+# Or manually
+sudo cp cache-remover-utility /usr/local/bin/
+cache-remover-utility --ui ~/Projects
 ```
 
 ## 🤝 Contributing
