@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
@@ -177,9 +178,12 @@ type model struct {
 	err         error
 	
 	// Cleaning state
-	cleaningIndex    int
-	cleaningProgress float64
-	cleaningResults  CleanupStats
+	cleaningIndex      int
+	cleaningProgress   float64
+	cleaningResults    CleanupStats
+	currentProject     string
+	totalProjects      int
+	projectsCompleted  int
 	
 	// Details view
 	detailsProject *ProjectItem
@@ -198,14 +202,29 @@ type loadProjectsMsg struct {
 }
 
 type cleanProgressMsg struct {
-	index    int
-	progress float64
-	results  CleanupStats
+	index          int
+	progress       float64
+	results        CleanupStats
+	currentProject string
+	totalProjects  int
+	completed      bool
 }
 
 type cleanCompleteMsg struct {
 	results CleanupStats
 }
+
+// Step B: Cleanup state tracker for progress updates
+type cleanupState struct {
+	projects       []ProjectItem
+	currentIndex   int
+	currentProject string
+	results        CleanupStats
+	isActive       bool
+	mutex          sync.RWMutex
+}
+
+var globalCleanupState *cleanupState
 
 func initialModel(rootDir string) model {
 	s := spinner.New()
@@ -342,6 +361,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.cleaningIndex = msg.index
 		m.cleaningProgress = msg.progress
 		m.cleaningResults = msg.results
+		m.currentProject = msg.currentProject
+		m.totalProjects = msg.totalProjects
+		if msg.completed {
+			m.projectsCompleted = msg.index
+		}
 
 	case cleanCompleteMsg:
 		m.cleaningResults = msg.results
@@ -420,6 +444,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						"Clean %d projects?\nThis will remove %d cache items (%s)\n\nPress 'y' to confirm, 'n' to cancel",
 						len(selectedProjects), totalItems, formatBytes(totalSize))
 					m.confirmAction = func() tea.Cmd {
+						// Initialize progress tracking
+						m.totalProjects = len(selectedProjects)
+						m.projectsCompleted = 0
+						m.currentProject = "Starting..."
+						m.cleaningProgress = 0.0
 						return cleanSelectedProjects(selectedProjects)
 					}
 					m.state = StateConfirm
@@ -479,6 +508,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.list, cmd = m.list.Update(msg)
 		cmds = append(cmds, cmd)
 	case StateCleaning:
+		// Update both spinner and progress bar during cleaning
+		m.spinner, cmd = m.spinner.Update(msg)
+		cmds = append(cmds, cmd)
+		
 		var progressModel tea.Model
 		progressModel, cmd = m.progress.Update(msg)
 		if pm, ok := progressModel.(progress.Model); ok {
@@ -490,24 +523,82 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
+// Step B: Cleanup with shared state and periodic progress updates
 func cleanSelectedProjects(projects []ProjectItem) tea.Cmd {
-	return tea.Cmd(func() tea.Msg {
-		var wg sync.WaitGroup
-		results := CleanupStats{}
-		
-		for _, project := range projects {
-			// Send progress update
-			tea.Printf("Cleaning %s...\n", project.Project.Name)
+	// Initialize global cleanup state
+	globalCleanupState = &cleanupState{
+		projects:       projects,
+		currentIndex:   0,
+		currentProject: "Starting cleanup...",
+		results:        CleanupStats{},
+		isActive:       true,
+	}
+	
+	return tea.Batch(
+		// Send initial progress message immediately
+		func() tea.Msg {
+			return cleanProgressMsg{
+				index:          0,
+				progress:       0.0,
+				results:        CleanupStats{},
+				currentProject: "Starting cleanup...",
+				totalProjects:  len(projects),
+				completed:      false,
+			}
+		},
+		// Start periodic progress updates
+		tea.Every(200*time.Millisecond, func(t time.Time) tea.Msg {
+			if globalCleanupState == nil {
+				return nil
+			}
 			
-			removedItems, removedSize := removeCacheItems(project.CacheItems, false)
-			results.TotalCacheItems += removedItems
-			results.TotalSizeRemoved += removedSize
-			results.TotalProjects++
-		}
-		
-		wg.Wait()
-		return cleanCompleteMsg{results: results}
-	})
+			globalCleanupState.mutex.RLock()
+			defer globalCleanupState.mutex.RUnlock()
+			
+			if !globalCleanupState.isActive {
+				return nil
+			}
+			
+			return cleanProgressMsg{
+				index:          globalCleanupState.currentIndex,
+				progress:       float64(globalCleanupState.currentIndex) / float64(len(globalCleanupState.projects)),
+				results:        globalCleanupState.results,
+				currentProject: globalCleanupState.currentProject,
+				totalProjects:  len(globalCleanupState.projects),
+				completed:      globalCleanupState.currentIndex >= len(globalCleanupState.projects),
+			}
+		}),
+		// Start the actual cleanup process
+		func() tea.Msg {
+			results := CleanupStats{}
+			
+			for i, project := range projects {
+				// Update shared state
+				globalCleanupState.mutex.Lock()
+				globalCleanupState.currentIndex = i
+				globalCleanupState.currentProject = project.Project.Name
+				globalCleanupState.mutex.Unlock()
+				
+				// Perform cleanup for each project
+				removedItems, removedSize := removeCacheItems(project.CacheItems, false)
+				results.TotalCacheItems += removedItems
+				results.TotalSizeRemoved += removedSize
+				results.TotalProjects++
+				
+				// Update results in shared state
+				globalCleanupState.mutex.Lock()
+				globalCleanupState.results = results
+				globalCleanupState.mutex.Unlock()
+			}
+			
+			// Mark cleanup as complete
+			globalCleanupState.mutex.Lock()
+			globalCleanupState.isActive = false
+			globalCleanupState.mutex.Unlock()
+			
+			return cleanCompleteMsg{results: results}
+		},
+	)
 }
 
 func (m model) View() string {
@@ -562,8 +653,43 @@ func (m model) View() string {
 		return fmt.Sprintf("\n%s\n", warningStyle.Render(m.confirmMessage))
 		
 	case StateCleaning:
-		return fmt.Sprintf("\n\n   🧹 Cleaning projects...\n\n   %s\n\n   Progress: %.0f%%\n\n",
-			m.progress.View(), m.cleaningProgress*100)
+		// Create animated spinner for active cleanup
+		spinnerView := m.spinner.View()
+		
+		// Status message
+		status := fmt.Sprintf("%s Cleaning cache files...", spinnerView)
+		if m.currentProject != "" && m.currentProject != "Starting..." {
+			status = fmt.Sprintf("%s Cleaning: %s", spinnerView, m.currentProject)
+		}
+		
+		// Progress information
+		progressInfo := "Initializing cleanup..."
+		if m.totalProjects > 0 {
+			progressInfo = fmt.Sprintf("Project %d of %d", m.projectsCompleted+1, m.totalProjects)
+		}
+		
+		// Progress bar - always show some progress during cleanup
+		displayProgress := m.cleaningProgress
+		if displayProgress == 0.0 && m.totalProjects > 0 {
+			// Show some progress even when starting
+			displayProgress = 0.1
+		}
+		progressBar := m.progress.ViewAs(displayProgress)
+		
+		// Current statistics
+		stats := fmt.Sprintf(
+			"📊 Status: Processing cache directories\n"+
+			"🗑️  Items removed: %d\n"+
+			"💾 Space reclaimed: %s",
+			m.cleaningResults.TotalCacheItems,
+			formatBytes(m.cleaningResults.TotalSizeRemoved))
+		
+		return fmt.Sprintf("\n\n   %s\n   %s\n\n   %s\n\n   %.1f%% Complete\n\n%s\n\n   💡 Tip: This may take a moment for large cache directories\n   Press 'q' to cancel\n\n",
+			status,
+			progressInfo,
+			progressBar,
+			displayProgress*100,
+			stats)
 		
 	case StateResults:
 		results := statsStyle.Render(fmt.Sprintf(
