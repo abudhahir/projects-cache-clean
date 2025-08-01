@@ -127,7 +127,8 @@ func getDefaultConfig() Config {
 						// Poetry environments
 						".poetry", "poetry-env",
 						// Pipenv
-						".pipenv", "pipenv-env",
+                      ".pipenv", "pipenv-env", "codebase-analyzer-env",
+
 					},
 					Files:       []string{},
 					Extensions:  []string{".pyc", ".pyo"},

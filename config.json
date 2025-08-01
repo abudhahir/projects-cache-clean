@@ -22,7 +22,8 @@
           "myenv", "dev-env", "test-env", "prod-env", "local-env",
           "development", "testing", "ml-env", "mlenv", "data-env",
           ".poetry", "poetry-env",
-          ".pipenv", "pipenv-env"
+          ".pipenv", "pipenv-env",
+          "codebase-analyzer-env"
         ],
         "files": [],
         "extensions": [".pyc", ".pyo"]
