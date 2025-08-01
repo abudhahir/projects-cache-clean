@@ -354,13 +354,9 @@ func findCacheItems(projectPath string, config CacheConfig) []CacheItem {
 }
 
 func getDirSize(dirPath string) int64 {
-	// Check if this is a cache directory - if so, use optimized approach
-	dirName := filepath.Base(dirPath)
-	if isCacheDirectory(dirName) {
-		return getOptimizedCacheDirSize(dirPath)
-	}
+	// Always use full recursive scanning for accurate size calculations
+	// Performance optimization happens during project discovery, not size calculation
 
-	// For non-cache directories, use the standard recursive approach
 	var size int64
 	filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -368,6 +364,10 @@ func getDirSize(dirPath string) int64 {
 			return nil
 		}
 		if !info.IsDir() {
+			// Check for potential overflow
+			if size > 0 && info.Size() > 0 && size > (9223372036854775807-info.Size()) {
+				return filepath.SkipDir // Stop walking to prevent overflow
+			}
 			size += info.Size()
 		}
 		return nil
