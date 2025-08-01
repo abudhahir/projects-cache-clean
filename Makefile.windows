@@ -1,0 +1,173 @@
+# 🔨 Cache Remover Utility - Windows Makefile
+# Makefile for Windows development and installation
+# Usage: make -f Makefile.windows [target]
+
+.PHONY: build test clean run install uninstall help demo lint deps portable installer
+
+# Binary name
+BINARY_NAME = cache-remover-utility.exe
+INSTALL_DIR = C:\Program Files\CacheRemover
+USER_INSTALL_DIR = $(USERPROFILE)\AppData\Local\CacheRemover
+
+# Go parameters
+GOCMD = go
+GOBUILD = $(GOCMD) build
+GOTEST = $(GOCMD) test
+GOGET = $(GOCMD) get
+GOMOD = $(GOCMD) mod
+
+# Build flags
+LDFLAGS = -ldflags="-s -w"
+
+# Default target
+all: build
+
+# Build the application
+build:
+	@echo Building Cache Remover Utility for Windows...
+	@$(GOBUILD) $(LDFLAGS) -o $(BINARY_NAME) .
+	@echo Build complete: $(BINARY_NAME)
+
+# Build portable version (single exe, no dependencies)
+portable:
+	@echo Building portable executable...
+	@set CGO_ENABLED=0
+	@$(GOBUILD) $(LDFLAGS) -a -installsuffix cgo -o $(BINARY_NAME) .
+	@echo Portable build complete: $(BINARY_NAME)
+
+# Run tests
+test:
+	@echo Running tests...
+	@$(GOTEST) -v ./...
+
+# Run tests with race detection
+test-race:
+	@echo Running tests with race detection...
+	@$(GOTEST) -race -v ./...
+
+# Clean build artifacts
+clean:
+	@echo Cleaning build artifacts...
+	@if exist $(BINARY_NAME) del /F /Q $(BINARY_NAME)
+	@if exist cache-remover-utility del /F /Q cache-remover-utility
+	@if exist test-area rmdir /S /Q test-area
+	@if exist demo-projects rmdir /S /Q demo-projects
+	@echo Clean complete!
+
+# Build and run with TUI
+run: build
+	@echo Running Cache Remover TUI...
+	@$(BINARY_NAME) --ui
+
+# Run with current directory
+start: build
+	@$(BINARY_NAME) --ui .
+
+# Dry run with current directory
+preview: build
+	@$(BINARY_NAME) --dry-run .
+
+# Install to Program Files (requires admin)
+install: build
+	@echo Installing Cache Remover Utility...
+	@echo.
+	@echo This requires Administrator privileges.
+	@echo Please run this command prompt as Administrator.
+	@echo.
+	@if not exist "$(INSTALL_DIR)" mkdir "$(INSTALL_DIR)"
+	@copy /Y $(BINARY_NAME) "$(INSTALL_DIR)\$(BINARY_NAME)"
+	@echo Adding to system PATH...
+	@setx /M PATH "%PATH%;$(INSTALL_DIR)"
+	@echo.
+	@echo Installation complete!
+	@echo Please restart your command prompt for PATH changes to take effect.
+	@echo You can now use 'cache-remover-utility' from anywhere.
+
+# Install for current user only (no admin required)
+install-user: build
+	@echo Installing Cache Remover Utility for current user...
+	@if not exist "$(USER_INSTALL_DIR)" mkdir "$(USER_INSTALL_DIR)"
+	@copy /Y $(BINARY_NAME) "$(USER_INSTALL_DIR)\$(BINARY_NAME)"
+	@echo Adding to user PATH...
+	@for /f "skip=2 tokens=3*" %%a in ('reg query HKCU\Environment /v PATH') do set UserPath=%%b
+	@setx PATH "%UserPath%;$(USER_INSTALL_DIR)"
+	@echo.
+	@echo User installation complete!
+	@echo Please restart your command prompt for PATH changes to take effect.
+
+# Create Start Menu shortcut
+create-shortcut:
+	@echo Creating Start Menu shortcut...
+	@powershell -Command "$$WshShell = New-Object -comObject WScript.Shell; $$Shortcut = $$WshShell.CreateShortcut('$$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Cache Remover Utility.lnk'); $$Shortcut.TargetPath = '$(INSTALL_DIR)\$(BINARY_NAME)'; $$Shortcut.IconLocation = '$(INSTALL_DIR)\$(BINARY_NAME)'; $$Shortcut.Save()"
+	@echo Shortcut created!
+
+# Uninstall from system
+uninstall:
+	@echo Uninstalling Cache Remover Utility...
+	@if exist "$(INSTALL_DIR)\$(BINARY_NAME)" del /F /Q "$(INSTALL_DIR)\$(BINARY_NAME)"
+	@if exist "$(INSTALL_DIR)" rmdir /Q "$(INSTALL_DIR)"
+	@if exist "%APPDATA%\Microsoft\Windows\Start Menu\Programs\Cache Remover Utility.lnk" del /F /Q "%APPDATA%\Microsoft\Windows\Start Menu\Programs\Cache Remover Utility.lnk"
+	@echo.
+	@echo Uninstall complete!
+	@echo Note: PATH variable was not modified. Remove $(INSTALL_DIR) from PATH manually if needed.
+
+# Download and verify dependencies
+deps:
+	@echo Downloading dependencies...
+	@$(GOMOD) download
+	@$(GOMOD) verify
+	@echo Dependencies downloaded!
+
+# Run linting (requires golangci-lint)
+lint:
+	@echo Running linter...
+	@golangci-lint run
+	@echo Linting complete!
+
+# Create demo projects for testing
+demo: build
+	@echo Creating demo projects...
+	@powershell -ExecutionPolicy Bypass -File scripts\create-demo-windows.ps1
+	@echo Running on demo projects...
+	@$(BINARY_NAME) --dry-run demo-projects
+
+# Build installer package (requires NSIS)
+installer: build
+	@echo Building Windows installer...
+	@if exist installer.nsi (makensis installer.nsi) else (echo installer.nsi not found!)
+
+# Show version information
+version: build
+	@$(BINARY_NAME) --version
+
+# Show help
+help:
+	@echo Cache Remover Utility - Windows Build System
+	@echo.
+	@echo Available targets:
+	@echo   build          - Build the application
+	@echo   portable       - Build portable executable (no dependencies)
+	@echo   test           - Run all tests
+	@echo   test-race      - Run tests with race detection
+	@echo   clean          - Clean build artifacts
+	@echo   run            - Build and run with TUI
+	@echo   start          - Quick start with current directory
+	@echo   preview        - Dry run with current directory
+	@echo   install        - Install to Program Files (requires admin)
+	@echo   install-user   - Install for current user only
+	@echo   create-shortcut- Create Start Menu shortcut
+	@echo   uninstall      - Uninstall from system
+	@echo   deps           - Download dependencies
+	@echo   lint           - Run code linting
+	@echo   demo           - Run with demo projects
+	@echo   installer      - Build Windows installer
+	@echo   version        - Show version information
+	@echo   help           - Show this help
+	@echo.
+	@echo Examples:
+	@echo   make -f Makefile.windows build
+	@echo   make -f Makefile.windows install
+	@echo   make -f Makefile.windows run
+	@echo.
+	@echo For user installation without admin rights:
+	@echo   make -f Makefile.windows install-user

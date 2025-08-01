@@ -213,6 +213,26 @@ Continue? [y/N]: y
 
 ## 🔧 Build & Installation Options
 
+### 🪟 Windows Users
+For complete Windows installation instructions, see **[WINDOWS.md](WINDOWS.md)**
+
+**Quick Windows Install:**
+```cmd
+# Clone and install
+git clone https://github.com/abudhahir/projects-cache-clean.git
+cd projects-cache-clean
+install.bat
+```
+
+**Windows Make Commands:**
+```cmd
+make -f Makefile.windows install     # System-wide (requires admin)
+make -f Makefile.windows install-user # User installation (no admin)
+make -f Makefile.windows help         # Show all Windows options
+```
+
+### 🐧 Unix/Linux/macOS
+
 ### Development Scripts
 ```bash
 # Build and run development tasks
