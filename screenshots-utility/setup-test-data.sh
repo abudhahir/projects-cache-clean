@@ -201,6 +201,7 @@ EOF
 
 # Create target directory
 mkdir -p demo-projects/rust-cli/target/{debug,release}
+mkdir -p demo-projects/rust-cli/target/debug/deps
 echo "// Debug binary" > demo-projects/rust-cli/target/debug/rust-cli
 echo "// Release binary" > demo-projects/rust-cli/target/release/rust-cli
 
