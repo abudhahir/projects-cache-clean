@@ -23,6 +23,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Recognizes virtual environments can be GB+ in size
   - Safely removes only project-local virtual environments
   - Documented re-installation procedures for user confidence
+- **COMPLETE WINDOWS INSTALLATION SYSTEM**: Native Windows support
+  - Windows-specific Makefile with 20+ targets (install, uninstall, portable, etc.)
+  - Automated installation scripts (install.bat, uninstall.bat, build.bat)  
+  - Smart admin rights detection and user-only installation option
+  - Automatic PATH management, Start Menu shortcuts, desktop shortcuts
+  - PowerShell demo project creator for testing
+  - Comprehensive Windows documentation (WINDOWS.md) with troubleshooting
+  - Professional-grade Windows installation experience
 
 ### Changed
 - **BALANCED PERFORMANCE IMPROVEMENT**: 10-50x faster project discovery while maintaining 100% accuracy
@@ -61,16 +69,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Technical Details
 - Enhanced `findProjects()` to skip cache directories during project discovery
-- Optimized `findCacheItems()` to skip cache directories during extension searches
+- **FIXED**: `findCacheItems()` now does recursive cache directory search (not just root level)
+- **FIXED**: Eliminated incorrect cache directory skipping during extension file collection  
 - Restored `getDirSize()` to use full recursive scanning for accurate measurements
+- Implemented `forceRemoveCacheDirectory()` with 4-strategy removal system
+- Added `processedPaths` deduplication to prevent double-counting
+- Expanded Python virtual environment detection from 2 to 30+ patterns
+- Synchronized default configuration with config.json (9 project types)
+- Created Windows-native build and installation system
 - Maintained cache directory recognition for smart scanning decisions
 - Integrated performance optimizations in discovery phase, not measurement phase
 
 ### Performance & Accuracy
-- Project discovery: 10-50x faster through smart cache directory skipping
-- Size calculations: 100% accurate with complete recursive scanning
-- Extension searches: Optimized to avoid unnecessary cache directory traversal  
-- Balanced approach: Performance gains without accuracy compromise
+- **Project discovery**: 10-50x faster through smart cache directory skipping
+- **Size calculations**: 100% accurate with complete recursive scanning
+- **Cache detection**: Now finds nested cache directories (was missing __pycache__ in subdirs)
+- **Virtual environments**: Detects GB+ of additional cache (30+ patterns vs 2)
+- **Cache removal**: Robust 4-strategy system handles "directory not empty" errors
+- **Configuration consistency**: Eliminates dry-run vs actual execution discrepancies
+- **Cross-platform**: Native Windows installation with professional-grade experience
+- **Balanced approach**: Performance gains without accuracy compromise
 
 ## [Previous Versions]
 
