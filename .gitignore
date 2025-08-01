@@ -19,6 +19,10 @@ Thumbs.db
 # Screenshot utility (not needed in main branch)
 screenshots-utility/
 
+# Test directories (for development testing)
+test-area/
+tree-test/
+
 # Temporary files
 *.tmp
 *.temp
