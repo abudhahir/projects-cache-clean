@@ -8,6 +8,7 @@ Complete documentation for all features and advanced usage of Cache Remover Util
 - [Usage Modes](#-usage-modes)  
 - [Interactive TUI Guide](#-interactive-tui-guide)
 - [Advanced Examples](#-advanced-examples)
+- [Configuration Management](#️-configuration-management)
 - [Project Type Detection](#-project-type-detection)
 - [Performance Optimizations](#-performance-optimizations)
 - [Safety Features](#️-safety-features)
@@ -32,8 +33,14 @@ Complete documentation for all features and advanced usage of Cache Remover Util
 ### Performance Options
 | Flag | Default | Description |
 |------|---------|-------------|
-| `-workers` | CPU cores | Number of worker goroutines |
-| `-max-depth` | `10` | Maximum directory depth to scan |
+| `-workers` | Config default (4) | Number of worker goroutines |
+| `-max-depth` | Config default (10) | Maximum directory depth to scan |
+
+### Configuration Options
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--list-types` | - | **List all supported project types and cache patterns** |
+| `--save-config` | - | **Generate default configuration file for customization** |
 
 ## 🎛️ Usage Modes
 
@@ -239,6 +246,85 @@ fi
 # Quiet mode (only final statistics)
 ./cache-remover ~/Projects | grep "📊"
 ```
+
+## ⚙️ Configuration Management
+
+The Cache Remover Utility supports flexible configuration through JSON files, allowing you to customize project types, cache patterns, and default settings.
+
+### Configuration File Priority
+Configuration files are loaded in this order (first found wins):
+1. `config.json` (current directory)
+2. `cache-remover-config.json` (current directory)  
+3. `~/.cache-remover/config.json` (user home directory)
+4. `/etc/cache-remover/config.json` (system-wide)
+
+### Generate Default Configuration
+```bash
+# Create a customizable configuration file
+./cache-remover --save-config
+
+# This creates cache-remover-config.json in the current directory
+```
+
+### List Supported Project Types
+```bash
+# View all supported project types and their cache patterns
+./cache-remover --list-types
+```
+
+**Example Output:**
+```
+📋 Supported Project Types (9 total):
+
+🔹 Node.js
+   Indicators: package.json, yarn.lock, package-lock.json
+   Cache Directories: node_modules, dist, build, .next, .nuxt, coverage
+
+🔹 Python
+   Indicators: requirements.txt, setup.py, pyproject.toml, Pipfile
+   Cache Directories: __pycache__, .pytest_cache, dist, build, .mypy_cache, .tox, venv, .venv
+   Cache Extensions: .pyc, .pyo
+
+🔹 Angular
+   Indicators: angular.json
+   Cache Directories: node_modules, dist, .angular
+```
+
+### Custom Configuration Example
+```json
+{
+  "project_types": [
+    {
+      "name": "Custom Framework",
+      "indicators": ["custom.config", "framework.json"],
+      "cache_config": {
+        "directories": ["cache", "tmp", "build-output"],
+        "files": ["temp.log", "debug.cache"],
+        "extensions": [".cache", ".tmp", ".build"]
+      }
+    },
+    {
+      "name": "Unity Project",
+      "indicators": ["ProjectSettings", "Assets"],
+      "cache_config": {
+        "directories": ["Library", "Temp", "Obj", "Build"]
+      }
+    }
+  ],
+  "settings": {
+    "max_depth": 8,
+    "default_workers": 6,
+    "log_level": "verbose"
+  }
+}
+```
+
+### Configuration Settings
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `max_depth` | 10 | Maximum directory depth to scan |
+| `default_workers` | 4 | Default number of worker goroutines |
+| `log_level` | "info" | Default logging level (info, verbose, quiet) |
 
 ## 🔍 Project Type Detection
 

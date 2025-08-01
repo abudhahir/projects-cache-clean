@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -19,67 +18,11 @@ type CacheConfig struct {
 }
 
 type ProjectType struct {
-	Name        string
-	Indicators  []string
-	CacheConfig CacheConfig
+	Name        string      `json:"name"`
+	Indicators  []string    `json:"indicators"`
+	CacheConfig CacheConfig `json:"cache_config"`
 }
 
-var projectTypes = []ProjectType{
-	{
-		Name:       "Node.js",
-		Indicators: []string{"package.json", "yarn.lock", "package-lock.json"},
-		CacheConfig: CacheConfig{
-			Directories: []string{"node_modules", "dist", "build", ".next", ".nuxt", "coverage"},
-			Files:       []string{},
-			Extensions:  []string{},
-		},
-	},
-	{
-		Name:       "Python",
-		Indicators: []string{"requirements.txt", "setup.py", "pyproject.toml", "Pipfile"},
-		CacheConfig: CacheConfig{
-			Directories: []string{"__pycache__", ".pytest_cache", "dist", "build", ".mypy_cache", ".tox", "venv", ".venv"},
-			Files:       []string{},
-			Extensions:  []string{".pyc", ".pyo"},
-		},
-	},
-	{
-		Name:       "Java/Maven",
-		Indicators: []string{"pom.xml"},
-		CacheConfig: CacheConfig{
-			Directories: []string{"target"},
-			Files:       []string{},
-			Extensions:  []string{},
-		},
-	},
-	{
-		Name:       "Gradle",
-		Indicators: []string{"build.gradle", "build.gradle.kts"},
-		CacheConfig: CacheConfig{
-			Directories: []string{"build", ".gradle"},
-			Files:       []string{},
-			Extensions:  []string{},
-		},
-	},
-	{
-		Name:       "Go",
-		Indicators: []string{"go.mod", "go.sum"},
-		CacheConfig: CacheConfig{
-			Directories: []string{"vendor"},
-			Files:       []string{},
-			Extensions:  []string{},
-		},
-	},
-	{
-		Name:       "Rust",
-		Indicators: []string{"Cargo.toml"},
-		CacheConfig: CacheConfig{
-			Directories: []string{"target"},
-			Files:       []string{},
-			Extensions:  []string{},
-		},
-	},
-}
 
 type CacheItem struct {
 	Path string
@@ -109,16 +52,40 @@ func (s *CleanupStats) IncrementProjects() {
 }
 
 func main() {
+	// Load configuration first
+	config, err := loadConfig()
+	if err != nil {
+		fmt.Printf("Error loading configuration: %v\n", err)
+		os.Exit(1)
+	}
+
 	var (
-		rootDir    = flag.String("dir", ".", "Root directory to scan for projects")
-		dryRun     = flag.Bool("dry-run", false, "Show what would be removed without actually removing")
-		workers    = flag.Int("workers", runtime.NumCPU(), "Number of worker goroutines")
-		verbose    = flag.Bool("verbose", false, "Verbose output")
-		maxDepth   = flag.Int("max-depth", 10, "Maximum directory depth to scan")
+		rootDir     = flag.String("dir", ".", "Root directory to scan for projects")
+		dryRun      = flag.Bool("dry-run", false, "Show what would be removed without actually removing")
+		workers     = flag.Int("workers", config.Settings.DefaultWorkers, "Number of worker goroutines")
+		verbose     = flag.Bool("verbose", false, "Verbose output")
+		maxDepth    = flag.Int("max-depth", config.Settings.MaxDepth, "Maximum directory depth to scan")
 		interactive = flag.Bool("interactive", false, "Ask for confirmation before removing each cache")
-		ui         = flag.Bool("ui", false, "Launch interactive TUI mode")
+		ui          = flag.Bool("ui", false, "Launch interactive TUI mode")
+		saveConfig  = flag.Bool("save-config", false, "Save default configuration to current directory")
+		listTypes   = flag.Bool("list-types", false, "List all supported project types")
 	)
 	flag.Parse()
+
+	// Handle special flags
+	if *saveConfig {
+		if err := saveDefaultConfig(); err != nil {
+			fmt.Printf("Error saving config: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Println("✅ Default configuration saved to cache-remover-config.json")
+		return
+	}
+
+	if *listTypes {
+		listProjectTypes(config)
+		return
+	}
 
 	// Handle positional argument for directory
 	if len(flag.Args()) > 0 {
@@ -162,8 +129,9 @@ func main() {
 }
 
 func isCacheDirectory(dirName string) bool {
+	config, _ := loadConfig()
 	// Check if this directory name matches any known cache directory patterns
-	for _, projectType := range projectTypes {
+	for _, projectType := range config.ProjectTypes {
 		for _, cacheDir := range projectType.CacheConfig.Directories {
 			if dirName == cacheDir {
 				return true
@@ -179,6 +147,9 @@ func findProjects(rootDir string, maxDepth int, verbose bool) []string {
 
 	err := filepath.Walk(rootDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
+			if verbose {
+				fmt.Printf("⚠️  Warning: Cannot access %s: %v\n", path, err)
+			}
 			return nil
 		}
 
@@ -219,7 +190,8 @@ func findProjects(rootDir string, maxDepth int, verbose bool) []string {
 }
 
 func isProjectDirectory(dir string) bool {
-	for _, projectType := range projectTypes {
+	config, _ := loadConfig()
+	for _, projectType := range config.ProjectTypes {
 		for _, indicator := range projectType.Indicators {
 			indicatorPath := filepath.Join(dir, indicator)
 			if _, err := os.Stat(indicatorPath); err == nil {
@@ -314,7 +286,8 @@ func processProject(projectPath string, dryRun, verbose, interactive bool, stats
 }
 
 func detectProjectType(projectPath string) *ProjectType {
-	for _, projectType := range projectTypes {
+	config, _ := loadConfig()
+	for _, projectType := range config.ProjectTypes {
 		for _, indicator := range projectType.Indicators {
 			indicatorPath := filepath.Join(projectPath, indicator)
 			if _, err := os.Stat(indicatorPath); err == nil {
@@ -352,7 +325,10 @@ func findCacheItems(projectPath string, config CacheConfig) []CacheItem {
 
 	if len(config.Extensions) > 0 {
 		filepath.Walk(projectPath, func(path string, info os.FileInfo, err error) error {
-			if err != nil || info.IsDir() {
+			if err != nil {
+				return nil
+			}
+			if info.IsDir() {
 				return nil
 			}
 
@@ -375,8 +351,9 @@ func findCacheItems(projectPath string, config CacheConfig) []CacheItem {
 
 func getDirSize(dirPath string) int64 {
 	var size int64
-	filepath.Walk(dirPath, func(_ string, info os.FileInfo, err error) error {
+	filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
+			// Skip files we can't access but continue walking
 			return nil
 		}
 		if !info.IsDir() {
@@ -393,9 +370,8 @@ func removeCacheItems(items []CacheItem, verbose bool) (int, int64) {
 
 	for _, item := range items {
 		if err := os.RemoveAll(item.Path); err != nil {
-			if verbose {
-				fmt.Printf("❌ Failed to remove %s: %v\n", item.Path, err)
-			}
+			// Always log removal failures, not just in verbose mode
+			fmt.Printf("❌ Failed to remove %s: %v\n", item.Path, err)
 		} else {
 			removedItems++
 			removedSize += item.Size
@@ -431,4 +407,26 @@ func printStats(stats *CleanupStats) {
 		fmt.Printf("   Average speed: %.2f MB/s\n", 
 			float64(stats.TotalSizeRemoved)/(1024*1024)/stats.ProcessingTime.Seconds())
 	}
+}
+
+func listProjectTypes(config *Config) {
+	fmt.Printf("📋 Supported Project Types (%d total):\n\n", len(config.ProjectTypes))
+	
+	for _, pt := range config.ProjectTypes {
+		fmt.Printf("🔹 %s\n", pt.Name)
+		fmt.Printf("   Indicators: %s\n", strings.Join(pt.Indicators, ", "))
+		fmt.Printf("   Cache Directories: %s\n", strings.Join(pt.CacheConfig.Directories, ", "))
+		
+		if len(pt.CacheConfig.Files) > 0 {
+			fmt.Printf("   Cache Files: %s\n", strings.Join(pt.CacheConfig.Files, ", "))
+		}
+		
+		if len(pt.CacheConfig.Extensions) > 0 {
+			fmt.Printf("   Cache Extensions: %s\n", strings.Join(pt.CacheConfig.Extensions, ", "))
+		}
+		
+		fmt.Println()
+	}
+	
+	fmt.Println("💡 Tip: Use --save-config to create a customizable configuration file")
 }

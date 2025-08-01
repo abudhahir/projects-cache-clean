@@ -1,0 +1,90 @@
+{
+  "project_types": [
+    {
+      "name": "Node.js",
+      "indicators": ["package.json", "yarn.lock", "package-lock.json"],
+      "cache_config": {
+        "directories": ["node_modules", "dist", "build", ".next", ".nuxt", "coverage"],
+        "files": [],
+        "extensions": []
+      }
+    },
+    {
+      "name": "Python",
+      "indicators": ["requirements.txt", "setup.py", "pyproject.toml", "Pipfile"],
+      "cache_config": {
+        "directories": ["__pycache__", ".pytest_cache", "dist", "build", ".mypy_cache", ".tox", "venv", ".venv"],
+        "files": [],
+        "extensions": [".pyc", ".pyo"]
+      }
+    },
+    {
+      "name": "Java/Maven",
+      "indicators": ["pom.xml"],
+      "cache_config": {
+        "directories": ["target"],
+        "files": [],
+        "extensions": []
+      }
+    },
+    {
+      "name": "Gradle",
+      "indicators": ["build.gradle", "build.gradle.kts"],
+      "cache_config": {
+        "directories": ["build", ".gradle"],
+        "files": [],
+        "extensions": []
+      }
+    },
+    {
+      "name": "Go",
+      "indicators": ["go.mod", "go.sum"],
+      "cache_config": {
+        "directories": ["vendor"],
+        "files": [],
+        "extensions": []
+      }
+    },
+    {
+      "name": "Rust",
+      "indicators": ["Cargo.toml"],
+      "cache_config": {
+        "directories": ["target"],
+        "files": [],
+        "extensions": []
+      }
+    },
+    {
+      "name": "Angular",
+      "indicators": ["angular.json"],
+      "cache_config": {
+        "directories": ["node_modules", "dist", ".angular"],
+        "files": [],
+        "extensions": []
+      }
+    },
+    {
+      "name": "Flutter",
+      "indicators": ["pubspec.yaml"],
+      "cache_config": {
+        "directories": ["build", ".dart_tool"],
+        "files": [],
+        "extensions": []
+      }
+    },
+    {
+      "name": "Swift/iOS",
+      "indicators": ["Package.swift", "*.xcodeproj", "*.xcworkspace"],
+      "cache_config": {
+        "directories": ["build", "DerivedData", ".build"],
+        "files": [],
+        "extensions": []
+      }
+    }
+  ],
+  "settings": {
+    "max_depth": 10,
+    "default_workers": 4,
+    "log_level": "info"
+  }
+}

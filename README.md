@@ -4,10 +4,12 @@ A blazing-fast, Go-powered cache removal utility that efficiently scans project 
 
 ## ✨ Key Features
 
-- **🚀 Multi-language Support**: Node.js, Python, Java/Maven, Gradle, Go, Rust
+- **🚀 Multi-language Support**: Node.js, Python, Java/Maven, Gradle, Go, Rust, Angular, Flutter, Swift/iOS
 - **⚡ 10-100x Performance**: Intelligent cache directory skipping optimization
 - **🛡️ Safe Operations**: Dry-run mode and interactive confirmations
 - **🖥️ Beautiful TUI**: Interactive terminal interface for project selection
+- **⚙️ Configurable**: JSON-based configuration system for custom project types
+- **🔧 Advanced CLI**: Rich command-line options and project type management
 - **💾 Zero Dependencies**: Single Go binary, no external requirements
 
 ## 🚀 Quick Start
@@ -38,11 +40,17 @@ go build -o cache-remover
 
 | Technology | Cache Directories | Typical Savings |
 |------------|-------------------|-----------------|
-| **Node.js** | node_modules, dist, build, .next | 100-500 MB |
-| **Python** | __pycache__, .pytest_cache, venv | 10-100 MB |
-| **Java** | target, build, .gradle | 50-500 MB |
+| **Node.js** | node_modules, dist, build, .next, .nuxt, coverage | 100-500 MB |
+| **Python** | __pycache__, .pytest_cache, dist, build, .mypy_cache, .tox, venv, .venv | 10-100 MB |
+| **Java/Maven** | target | 50-500 MB |
+| **Gradle** | build, .gradle | 50-500 MB |
 | **Go** | vendor | 10-100 MB |
 | **Rust** | target | 50-200 MB |
+| **Angular** | node_modules, dist, .angular | 100-500 MB |
+| **Flutter** | build, .dart_tool | 20-100 MB |
+| **Swift/iOS** | build, DerivedData, .build | 50-300 MB |
+
+💡 **Tip**: Use `./cache-remover --list-types` to see all supported project types and their cache patterns.
 
 ## ⚡ Performance Highlights
 
@@ -69,6 +77,52 @@ After:  Treating as single unit = 0.1 seconds (283x faster!)
 ./cache-remover -ui ~/Projects                # Interactive TUI
 ./cache-remover -verbose ~/Projects           # Detailed output
 ./cache-remover -interactive ~/Projects       # Per-project confirmation
+
+# Configuration management
+./cache-remover --list-types                  # Show all supported project types  
+./cache-remover --save-config                 # Generate customizable config file
+
+# Advanced options
+./cache-remover -workers 8 ~/Projects         # Use 8 worker threads
+./cache-remover -max-depth 5 ~/Projects       # Limit scanning depth
+```
+
+## ⚙️ Configuration System
+
+The cache remover supports flexible configuration through JSON files. Configuration files are searched in this order:
+
+1. `config.json` (current directory)
+2. `cache-remover-config.json` (current directory)  
+3. `~/.cache-remover/config.json` (user home)
+4. `/etc/cache-remover/config.json` (system-wide)
+
+### Generate Configuration
+```bash
+# Create a customizable configuration file
+./cache-remover --save-config
+
+# Edit the generated cache-remover-config.json to:
+# - Add custom project types
+# - Define new cache patterns  
+# - Modify scanning behavior
+# - Set default options
+```
+
+### Custom Project Types
+```json
+{
+  "project_types": [
+    {
+      "name": "Custom Framework",
+      "indicators": ["custom.config", "framework.json"],
+      "cache_config": {
+        "directories": ["cache", "tmp", "build-output"],
+        "files": ["temp.log"],
+        "extensions": [".cache", ".tmp"]
+      }
+    }
+  ]
+}
 ```
 
 ## 🏗️ Architecture

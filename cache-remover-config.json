@@ -1,0 +1,110 @@
+{
+  "project_types": [
+    {
+      "Name": "Node.js",
+      "Indicators": [
+        "package.json",
+        "yarn.lock",
+        "package-lock.json"
+      ],
+      "CacheConfig": {
+        "directories": [
+          "node_modules",
+          "dist",
+          "build",
+          ".next",
+          ".nuxt",
+          "coverage"
+        ],
+        "files": [],
+        "extensions": []
+      }
+    },
+    {
+      "Name": "Python",
+      "Indicators": [
+        "requirements.txt",
+        "setup.py",
+        "pyproject.toml",
+        "Pipfile"
+      ],
+      "CacheConfig": {
+        "directories": [
+          "__pycache__",
+          ".pytest_cache",
+          "dist",
+          "build",
+          ".mypy_cache",
+          ".tox",
+          "venv",
+          ".venv"
+        ],
+        "files": [],
+        "extensions": [
+          ".pyc",
+          ".pyo"
+        ]
+      }
+    },
+    {
+      "Name": "Java/Maven",
+      "Indicators": [
+        "pom.xml"
+      ],
+      "CacheConfig": {
+        "directories": [
+          "target"
+        ],
+        "files": [],
+        "extensions": []
+      }
+    },
+    {
+      "Name": "Gradle",
+      "Indicators": [
+        "build.gradle",
+        "build.gradle.kts"
+      ],
+      "CacheConfig": {
+        "directories": [
+          "build",
+          ".gradle"
+        ],
+        "files": [],
+        "extensions": []
+      }
+    },
+    {
+      "Name": "Go",
+      "Indicators": [
+        "go.mod",
+        "go.sum"
+      ],
+      "CacheConfig": {
+        "directories": [
+          "vendor"
+        ],
+        "files": [],
+        "extensions": []
+      }
+    },
+    {
+      "Name": "Rust",
+      "Indicators": [
+        "Cargo.toml"
+      ],
+      "CacheConfig": {
+        "directories": [
+          "target"
+        ],
+        "files": [],
+        "extensions": []
+      }
+    }
+  ],
+  "settings": {
+    "max_depth": 10,
+    "default_workers": 4,
+    "log_level": "info"
+  }
+}

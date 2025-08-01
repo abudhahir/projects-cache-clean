@@ -251,6 +251,7 @@ func loadProjects(rootDir string) tea.Cmd {
 		
 		err := filepath.Walk(rootDir, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
+				// Log error but continue walking other paths
 				return nil
 			}
 			
@@ -265,20 +266,7 @@ func loadProjects(rootDir string) tea.Cmd {
 			}
 			
 			// Skip descending into cache directories - they're meant to be removed as units
-			dirName := info.Name()
-			shouldSkip := false
-			for _, projectType := range projectTypes {
-				for _, cacheDir := range projectType.CacheConfig.Directories {
-					if dirName == cacheDir {
-						shouldSkip = true
-						break
-					}
-				}
-				if shouldSkip {
-					break
-				}
-			}
-			if shouldSkip {
+			if isCacheDirectory(info.Name()) {
 				return filepath.SkipDir
 			}
 			
