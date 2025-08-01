@@ -35,6 +35,22 @@ Complete documentation for all features and advanced usage of Cache Remover Util
 | `-workers` | CPU cores | Number of worker goroutines |
 | `-max-depth` | `10` | Maximum directory depth to scan |
 
+## 🎬 Visual Examples
+
+### Dry Run Mode - Safe Preview
+![Dry Run Demo](screenshots-utility/screenshots/dry-run.gif)
+
+### Verbose Mode with Optimization Messages
+![Verbose Mode Demo](screenshots-utility/screenshots/verbose.gif)
+
+### Interactive Per-Project Confirmation
+![Interactive Mode Demo](screenshots-utility/screenshots/interactive.gif)
+
+### Performance Optimization in Action
+![Performance Demo](screenshots-utility/screenshots/performance.gif)
+
+*These GIFs show the actual terminal output you'll see when using different modes*
+
 ## 🎛️ Usage Modes
 
 ### 1. 📊 Preview Mode (Recommended First Step)
@@ -128,6 +144,9 @@ Remove cache for /Users/dev/Projects/java-service? [y/N]: y
 ```
 
 ## 🖥️ Interactive TUI Guide
+
+### TUI Interface Demo
+![TUI Interface Demo](screenshots-utility/screenshots/ui-demo.gif)
 
 ### Launching TUI
 ```bash

@@ -86,6 +86,16 @@ graph TD
     style E fill:#e8f5e8
 ```
 
+## 🎬 Visual Demo
+
+### Quick Start Workflow
+![Quickstart Demo](screenshots-utility/screenshots/quickstart.gif)
+
+### Performance Optimization in Action
+![Performance Demo](screenshots-utility/screenshots/performance.gif)
+
+*Click on the GIFs to see them in full resolution*
+
 ## 📊 Example Output
 
 ```

@@ -27,6 +27,19 @@ go build -o cache-remover
 ./cache-remover -ui ~/Projects
 ```
 
+## 🎬 Visual Examples
+
+### Safe Preview (Always Start Here!)
+![Dry Run Demo](screenshots-utility/screenshots/dry-run.gif)
+
+### Basic Cleanup Workflow
+![Basic Usage Demo](screenshots-utility/screenshots/basic-usage.gif)
+
+### Interactive TUI Mode
+![TUI Interface Demo](screenshots-utility/screenshots/ui-demo.gif)
+
+*These GIFs show the actual terminal output you'll see*
+
 ## 📊 What You'll See
 
 **Dry run example:**
