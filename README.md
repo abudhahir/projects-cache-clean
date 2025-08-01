@@ -43,10 +43,14 @@ go build -o cache-remover-utility
 
 ## 📖 Documentation
 
-- **⚡ [Quick Start Guide](QUICKSTART.md)** - Get running in 2 minutes
-- **🪟 [Windows Installation Guide](WINDOWS.md)** - Complete Windows setup and usage
-- **📖 [Complete Usage Guide](USAGE.md)** - All features and advanced usage
-- **🧪 [Testing Guide](TESTING.md)** - Comprehensive testing instructions
+**📚 [Complete Documentation](docs/)** - Full documentation collection with organized guides
+
+**Quick Access:**
+- **⚡ [Quick Start Guide](docs/QUICKSTART.md)** - Get running in 2 minutes
+- **🪟 [Windows Installation Guide](docs/WINDOWS.md)** - Complete Windows setup and usage
+- **📖 [Complete Usage Guide](docs/USAGE.md)** - All features and advanced usage
+- **🧪 [Testing Guide](docs/TESTING.md)** - Comprehensive testing instructions
+- **📋 [Changelog](docs/CHANGELOG.md)** - Complete release history and improvements
 - **🐛 [Issues & Support](https://github.com/abudhahir/projects-cache-clean/issues)**
 
 ## 🎯 What Gets Cleaned
