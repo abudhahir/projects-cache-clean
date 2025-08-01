@@ -34,6 +34,7 @@ go build -o cache-remover
 
 - **⚡ [Quick Start Guide](QUICKSTART.md)** - Get running in 2 minutes
 - **📖 [Complete Usage Guide](USAGE.md)** - All features and advanced usage
+- **🧪 [Testing Guide](TESTING.md)** - Comprehensive testing instructions
 - **🐛 [Issues & Support](https://github.com/abudhahir/projects-cache-clean/issues)**
 
 ## 🎯 What Gets Cleaned
