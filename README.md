@@ -8,6 +8,9 @@ A blazing-fast, Go-powered cache removal utility that efficiently scans project 
 - **⚡ 10-100x Performance**: Intelligent cache directory skipping optimization
 - **🛡️ Safe Operations**: Dry-run mode and interactive confirmations
 - **🖥️ Beautiful TUI**: Interactive terminal interface for project selection
+- **🐍 Virtual Environment Detection**: Detects 30+ Python venv patterns (GB+ space savings)
+- **🔧 Robust Cache Removal**: Multi-strategy removal handles "directory not empty" errors
+- **🪟 Native Windows Support**: Professional installation with PATH integration
 - **⚙️ Configurable**: JSON-based configuration system for custom project types
 - **🔧 Advanced CLI**: Rich command-line options and project type management
 - **💾 Zero Dependencies**: Single Go binary, no external requirements
@@ -41,6 +44,7 @@ go build -o cache-remover-utility
 ## 📖 Documentation
 
 - **⚡ [Quick Start Guide](QUICKSTART.md)** - Get running in 2 minutes
+- **🪟 [Windows Installation Guide](WINDOWS.md)** - Complete Windows setup and usage
 - **📖 [Complete Usage Guide](USAGE.md)** - All features and advanced usage
 - **🧪 [Testing Guide](TESTING.md)** - Comprehensive testing instructions
 - **🐛 [Issues & Support](https://github.com/abudhahir/projects-cache-clean/issues)**
@@ -50,7 +54,7 @@ go build -o cache-remover-utility
 | Technology | Cache Directories | Typical Savings |
 |------------|-------------------|-----------------|
 | **Node.js** | node_modules, dist, build, .next, .nuxt, coverage | 100-500 MB |
-| **Python** | __pycache__, .pytest_cache, dist, build, .mypy_cache, .tox, venv, .venv | 10-100 MB |
+| **Python** | __pycache__, .pytest_cache, dist, build, .mypy_cache, .tox, venv, .venv, env, conda, [30+ patterns](config.json) | 10 MB - 2+ GB |
 | **Java/Maven** | target | 50-500 MB |
 | **Gradle** | build, .gradle | 50-500 MB |
 | **Go** | vendor | 10-100 MB |
@@ -63,27 +67,33 @@ go build -o cache-remover-utility
 
 ## ⚡ Performance Highlights
 
-**Smart Scanning Optimization**: Intelligent performance improvements that maintain 100% accuracy:
+**Smart Scanning Optimization**: Revolutionary performance improvements that maintain 100% accuracy:
 
 - **Project Discovery Optimization**: Skips walking into cache directories during initial project scanning
-- **Extension Search Optimization**: Avoids cache directories when searching for specific file patterns  
+- **Recursive Cache Detection**: Finds nested cache directories anywhere in project tree (fixed __pycache__ issue)
+- **Robust Cache Removal**: 4-strategy removal system handles "directory not empty" errors  
+- **Virtual Environment Detection**: Expanded from 2 to 30+ patterns, detects GB+ of additional cache
 - **Accurate Size Calculation**: Uses complete recursive scanning for precise cache size measurements
-- **Cache Directory Recognition**: Automatically identifies `node_modules`, `target`, `__pycache__`, etc.
+- **Configuration Consistency**: Eliminates dry-run vs actual execution discrepancies
 
 **Performance Benchmarks**:
 ```
-Optimization Focus: Project scanning and discovery (not size calculation)
+Recent Improvements (This Release):
+- Cache detection: Now finds nested directories (was missing __pycache__ in subdirs)
+- Virtual environments: Detects 1.7+ GB additional cache (text-generation-webui example)
+- Cache removal: Handles "directory not empty" errors with 4-strategy system
 - Project discovery: 10-50x faster by skipping cache directories
-- Extension searches: Skip thousands of files in cache directories  
-- Size calculations: 100% accurate with full recursive scanning
-- Overall throughput: Optimized scanning with maintained accuracy
+- Configuration: Eliminates dry-run vs execution discrepancies (Flutter fix)
+- Size calculations: 100% accurate with complete recursive scanning
 ```
 
 **Technical Approach**:
 - **Smart Discovery**: Treats cache directories as boundaries during project scanning
+- **Recursive Detection**: Finds cache directories anywhere in project tree (not just root)
+- **Multi-Strategy Removal**: 4 fallback methods handle stubborn cache directories
 - **Accurate Measurement**: Full recursive walks ensure precise size calculations
+- **Cross-Platform**: Native Windows installation with Unix/Linux compatibility
 - **Overflow Protection**: Safe handling of extremely large directories
-- **Maintained Accuracy**: No compromise on cache size precision
 
 ## 🛡️ Safety Features
 
