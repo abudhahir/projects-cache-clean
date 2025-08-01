@@ -42,6 +42,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **TUI COLUMN ALIGNMENT**: Fixed layout issues in tree view
   - Removed layout-breaking prefixes from selected rows
   - Maintained perfect column alignment across all navigation states
+- **CRITICAL CONFIGURATION CONSISTENCY**: Fixed dry-run vs actual execution discrepancy
+  - Default configuration was missing Flutter, Angular, and Swift/iOS project types
+  - Dry-run detected 1.9 GB Flutter cache but actual execution found 0 bytes (different configs)
+  - Added missing project types to default configuration for complete consistency
+  - Added transparency logging showing supported project types during execution
 
 ### Technical Details
 - Enhanced `findProjects()` to skip cache directories during project discovery
