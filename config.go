@@ -153,6 +153,33 @@ func getDefaultConfig() Config {
 					Extensions:  []string{},
 				},
 			},
+			{
+				Name:       "Angular",
+				Indicators: []string{"angular.json"},
+				CacheConfig: CacheConfig{
+					Directories: []string{"node_modules", "dist", ".angular"},
+					Files:       []string{},
+					Extensions:  []string{},
+				},
+			},
+			{
+				Name:       "Flutter",
+				Indicators: []string{"pubspec.yaml"},
+				CacheConfig: CacheConfig{
+					Directories: []string{"build", ".dart_tool"},
+					Files:       []string{},
+					Extensions:  []string{},
+				},
+			},
+			{
+				Name:       "Swift/iOS",
+				Indicators: []string{"Package.swift", "*.xcodeproj", "*.xcworkspace"},
+				CacheConfig: CacheConfig{
+					Directories: []string{"build", "DerivedData", ".build"},
+					Files:       []string{},
+					Extensions:  []string{},
+				},
+			},
 		},
 		Settings: Settings{
 			MaxDepth:       10,

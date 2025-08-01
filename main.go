@@ -108,6 +108,15 @@ func main() {
 	if *dryRun {
 		fmt.Printf("🔍 DRY RUN MODE - No files will be removed\n")
 	}
+	
+	// Display supported project types for transparency
+	fmt.Printf("🔧 Supported project types: ")
+	var typeNames []string
+	for _, pt := range config.ProjectTypes {
+		typeNames = append(typeNames, pt.Name)
+	}
+	fmt.Printf("%s\n", strings.Join(typeNames, ", "))
+	
 	fmt.Printf("💡 Tip: Use --ui for terminal interface or --web for browser interface\n")
 	fmt.Println()
 
