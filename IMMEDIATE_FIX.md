@@ -1,171 +1,238 @@
-# 🚨 Immediate Fix Plan: Revert Progress Implementation Degradation
+# 🎨 TUI Enhancement Plan: Column-Based Tree Display
 
-**Priority:** URGENT  
-**Status:** PENDING  
-**Estimated Time:** 2-3 hours  
-**Risk Level:** LOW (reverting to known good state)
-
-## Issue #1: Revert Problematic Progress Implementation
-**Priority:** CRITICAL  
-**Category:** Security & Architecture  
-
-**Issue Details:**
-The current progress implementation (commit 198eb97) introduced critical security vulnerabilities and architectural violations that didn't exist in the original clean implementation. The original simple progress display was thread-safe, resource-leak-free, and followed proper Bubble Tea patterns. Current implementation has:
-- Global mutable state with race conditions
-- Memory leaks from uncleaned timers  
-- Null pointer dereference risks
-- Anti-pattern violations of Bubble Tea framework
-- Resource management failures
-
-**Implementation Hint:**
-Use `git show b37397b:interactive.go` to extract the original clean `cleanSelectedProjects` function. Replace the current complex implementation with the original simple version. Remove global state variables and timer management code. Keep the infrastructure improvements (config, docs, tests) while reverting only the problematic progress code.
-
-**Acceptance Criteria:**
-- [ ] No global mutable state variables (var globalCleanupState)
-- [ ] No tea.Every() timer management
-- [ ] Original simple cleanSelectedProjects function restored
-- [ ] All tests still pass after revert
-- [ ] No race condition possibilities
-- [ ] No memory leaks or resource management issues
-- [ ] Proper Bubble Tea patterns followed
-- [ ] Infrastructure improvements (config, docs, tests) preserved
-
----
-
-## Issue #2: Preserve Infrastructure Improvements  
 **Priority:** HIGH  
-**Category:** Functionality
+**Status:** IN PROGRESS  
+**Estimated Time:** 3-4 hours  
+**Risk Level:** LOW-MEDIUM (Phased approach)
 
-**Issue Details:**
-While reverting the problematic progress implementation, we must carefully preserve the excellent infrastructure improvements made:
-- Configuration system (config.go, config.json)
-- Comprehensive documentation (README.md, QUICKSTART.md, USAGE.md)
-- Enhanced test coverage (main_test.go)
-- CLI enhancements (--list-types, --save-config)
-These represent genuine value-adds that should be maintained.
+## 📋 **Current State Analysis**
 
-**Implementation Hint:**
-Use selective git revert to target only the problematic interactive.go changes. Create a new branch, cherry-pick the good changes, and merge back clean. Alternatively, manually edit interactive.go to restore original function while keeping all other improvements intact.
+**Existing TUI Structure:**
+- TreeNode system with hierarchy support (Name, Path, Level, IsProject)
+- Simple text-based rendering with basic indentation  
+- No git integration currently implemented
+- Terminal width/height management already in place
+- Bubble Tea framework with proper event handling
 
-**Acceptance Criteria:**
-- [ ] Configuration system remains functional
-- [ ] All documentation files preserved
-- [ ] Enhanced test suite continues to pass
-- [ ] CLI flags --list-types and --save-config work
-- [ ] Build process remains unchanged
-- [ ] All infrastructure features operational
+**Current Display Format:**
+```
+○ 📁 project-name [Node.js] - 🗑 147 items (245.2 MB)
+├─ ○ 📁 subdirectory [12 projects, 1.2 GB]
+```
+
+## 🎯 **Target Display Format**
+
+**New Column-Based Layout:**
+```
+            Name                | Git Branch    | Size
+🔘 📁  /project-root            | 🌿 main   |  12 MB
+├── 🔘 📁  src                  |           |  4 MB
+│   ├── 🔘 📄  main.go          |           |  1 MB
+│   └── 🔘 📄  utils.go         |           |  0.5 MB
+├── 🔘 📁  frontend             |           |  3 MB
+│   ├── 🔘 📄  app.js           |           |  0.8 MB
+│   └── 🔘 📄  package.json     |           |  0.1 MB
+├── 🔘 📁  backend              |           |  2 MB
+│   └── 🔘 📄  server.py        |           |  0.7 MB
+├── 🔘 📁  .git                 |           |  1 MB
+└── 🔘 📄  README.md            |           |  0.01 MB
+```
+
+## 📊 **Required Data Structure Changes**
+
+**Enhanced TreeNode struct:**
+```go
+type TreeNode struct {
+    // Existing fields
+    Name           string
+    Path           string
+    IsProject      bool
+    Project        *ProjectItem
+    Children       []*TreeNode
+    Parent         *TreeNode
+    Expanded       bool
+    Selected       bool
+    Level          int
+    ChildProjects  int
+    ChildCacheSize int64
+    
+    // NEW FIELDS - Phase 1 & 3
+    FileSize       int64     // Individual file/directory size
+    FileCount      int       // Number of files in directory
+    LastModified   time.Time // Last modification time
+    FileType       string    // "file", "directory", "project"
+    IsFile         bool      // true for individual files
+    
+    // Phase 2 (DEFERRED - Medium Risk)
+    GitBranch      string    // Git branch information  
+    GitStatus      string    // "clean", "dirty", "ahead", etc.
+}
+```
+
+## ⚠️ **BREAKING CHANGES & STABILITY RISKS**
+
+**Potential Breaking Changes:**
+1. **TreeNode struct modifications** - Could affect existing serialization
+2. **Display width requirements** - New format needs ~80+ character width
+3. **Performance impact** - File operations could add 10-50ms per directory
+4. **Memory usage increase** - Additional metadata per node
+
+**Stability Risks:**
+1. **File system access failures** - Permission issues, missing files
+2. **Terminal width constraints** - Format breaks on narrow terminals (<60 chars)
+3. **Performance degradation** - Large directories could slow down rendering
+4. **Async complexity** - File operations could block UI updates
+
+## 🎯 **IMPLEMENTATION PHASES**
+
+### **Phase 1: Column Layout (LOW RISK) ✅ APPROVED**
+
+**Scope:**
+- Add new TreeNode fields with safe default values
+- Implement column-based rendering without git integration
+- Enhanced tree structure with proper box-drawing characters
+- Responsive column width calculations
+- File vs directory differentiation
+
+**Changes:**
+- Update TreeNode struct with new metadata fields
+- Replace renderTreeNode() with column-based layout
+- Add proper Unicode box-drawing characters (├──, └──, │)
+- Implement column width management
+- Test with existing functionality
+
+**Risk Level:** LOW - No external dependencies, backward compatible
+
+### **Phase 2: Git Integration (MEDIUM RISK) ⏸️ DEFERRED**
+
+**Scope:** SKIPPED for now due to stability concerns
+- Git branch detection via command execution
+- Git status checking with error handling
+- Graceful fallbacks for non-git repositories
+
+**Deferred Due To:**
+- External command execution risks
+- Performance impact (50-200ms per directory)
+- Complex error handling requirements
+- Potential blocking of UI updates
+
+### **Phase 3: Enhancement & Polish (LOW RISK) ✅ APPROVED**
+
+**Scope:**
+- Individual file/directory size calculation
+- File counting for directories
+- Visual enhancements and icons
+- Performance optimizations
+- Better error handling
+
+**Changes:**
+- Add file size calculation for individual files
+- Implement directory file counting
+- Enhanced visual indicators (📦 Node.js, 🐍 Python, ☕ Java)
+- Relative size formatting
+- Improved error messages
+
+**Risk Level:** LOW - No external dependencies, incremental improvements
+
+## 💡 **ADDITIONAL ENHANCEMENTS**
+
+**Visual Improvements:**
+- **Project type icons** - 📦 Node.js, 🐍 Python, ☕ Java, 🦀 Rust
+- **File type indicators** - 📄 Files, 📁 Directories, 🗂️ Projects
+- **Cache indicators** - 🗑️ for cache presence, ✅ for clean
+- **Selection states** - 🔘 unselected, 🔴 selected, 🟡 partial
+- **Size formatting** - Smart units (B, KB, MB, GB)
+
+**Functionality Enhancements:**
+- **File counts** - (147 files) for directories
+- **Smart column widths** - Auto-adjust based on terminal width
+- **Truncation handling** - Ellipsis for long names
+- **Responsive layout** - Hide columns on narrow terminals
+
+## 🛡️ **RISK MITIGATION STRATEGIES**
+
+**Safety Measures:**
+1. **Graceful degradation** - Fall back to simple format on errors
+2. **Size limits** - Skip directories with >1000 files for performance
+3. **Error isolation** - File access errors don't crash the app
+4. **Memory management** - Limit cached metadata to prevent bloat
+5. **Performance monitoring** - Skip expensive operations on slow systems
+
+**Testing Strategy:**
+1. **Unit tests** - For new data structure fields
+2. **Integration tests** - Full TUI workflow testing
+3. **Performance tests** - Large directory handling
+4. **Edge case tests** - Permission errors, missing files, etc.
+
+## 📋 **EXECUTION PLAN**
+
+### **Phase 1: Column Layout Implementation (2 hours)**
+
+**Step 1.1: Data Structure Enhancement (30 minutes)**
+- [ ] Add new fields to TreeNode struct
+- [ ] Initialize fields with safe defaults
+- [ ] Update tree building logic to populate new fields
+- [ ] Test backward compatibility
+
+**Step 1.2: Column-Based Rendering (60 minutes)**
+- [ ] Design column layout with responsive widths
+- [ ] Implement new renderTreeNode() with columns
+- [ ] Add proper Unicode box-drawing characters
+- [ ] Handle terminal width edge cases
+- [ ] Test display with various content lengths
+
+**Step 1.3: Enhanced Tree Structure (30 minutes)**
+- [ ] Improve tree visual hierarchy
+- [ ] Add file vs directory differentiation
+- [ ] Implement better selection indicators
+- [ ] Polish visual formatting
+
+### **Phase 3: Enhancement & Polish Implementation (1.5 hours)**
+
+**Step 3.1: File Operations (45 minutes)**
+- [ ] Add individual file size calculation
+- [ ] Implement directory file counting
+- [ ] Add last modified time tracking
+- [ ] Handle file access errors gracefully
+
+**Step 3.2: Visual Polish (30 minutes)**
+- [ ] Add project type icons
+- [ ] Implement smart size formatting
+- [ ] Add file type indicators
+- [ ] Enhance color coding
+
+**Step 3.3: Performance & Testing (15 minutes)**
+- [ ] Add performance optimizations
+- [ ] Test with large directories
+- [ ] Validate memory usage
+- [ ] Final integration testing
+
+### **Total Estimated Time: 3.5 hours**
+
+## ✅ **ACCEPTANCE CRITERIA**
+
+**Phase 1 Success Criteria:**
+- [ ] Column-based display renders correctly
+- [ ] Terminal width responsiveness works
+- [ ] Tree structure uses proper box-drawing characters
+- [ ] No regression in existing functionality
+- [ ] Performance remains acceptable (<100ms rendering)
+
+**Phase 3 Success Criteria:**
+- [ ] Individual file sizes display accurately
+- [ ] Directory file counts are correct
+- [ ] Visual enhancements improve usability
+- [ ] Error handling works gracefully
+- [ ] Memory usage stays reasonable
+
+**Overall Success Criteria:**
+- [ ] Professional column-based tree display
+- [ ] Enhanced user experience
+- [ ] Maintained stability and performance
+- [ ] Full backward compatibility
+- [ ] No breaking changes to core functionality
 
 ---
 
-## Issue #3: Restore Original Simple Progress Display
-**Priority:** MEDIUM  
-**Category:** User Experience
-
-**Issue Details:**
-The original implementation had basic but functional progress display using `tea.Printf("Cleaning %s...\n", project.Project.Name)`. This provided adequate user feedback without the complexity and risks of the current implementation. Users could see which project was being processed without the overhead of complex state management.
-
-**Implementation Hint:**
-Restore the original progress display pattern using tea.Printf for project names. Keep the simple progress calculation `progress := float64(i) / float64(len(projects))` for basic percentage tracking. Remove all timer-based progress updates and global state tracking.
-
-**Acceptance Criteria:**
-- [ ] Users see "Cleaning [project-name]..." messages
-- [ ] Basic progress percentage calculation works
-- [ ] No complex timer-based updates
-- [ ] Clean, simple user feedback maintained
-- [ ] Progress display doesn't block or freeze UI
-- [ ] Works reliably across all project types
-
----
-
-## Issue #4: Add Regression Prevention Measures
-**Priority:** HIGH  
-**Category:** Quality Assurance
-
-**Issue Details:**
-To prevent future regression of this nature, we need quality gates and checks to ensure that "improvements" don't introduce critical issues. The evolution analysis showed that we introduced security vulnerabilities while trying to enhance user experience - this pattern must not repeat.
-
-**Implementation Hint:**
-Add code review checklist, security scanning hooks, and regression tests specifically targeting the patterns that were broken (global state, race conditions, resource leaks). Create architectural decision records (ADRs) documenting why certain patterns are forbidden.
-
-**Acceptance Criteria:**
-- [ ] Code review checklist includes security patterns
-- [ ] No global mutable state allowed in future changes
-- [ ] Race condition detection in CI/CD pipeline
-- [ ] Resource leak detection mechanisms
-- [ ] Architecture compliance automated checks
-- [ ] Regression test suite for progress functionality
-
----
-
-## Issue #5: Update Documentation to Reflect Revert
-**Priority:** MEDIUM  
-**Category:** Documentation
-
-**Issue Details:**  
-The current documentation and review reports reference the problematic progress implementation as "implemented" when it will be reverted. Documentation must be updated to reflect the actual state after the revert, maintaining honesty about what features are actually present vs. what was attempted.
-
-**Implementation Hint:**
-Update CODE_REVIEW_REPORT.md to mark progress implementation as "REVERTED - security issues". Update README.md and USAGE.md to reflect the actual simple progress display functionality available. Add note about why the complex progress was reverted.
-
-**Acceptance Criteria:**
-- [ ] Documentation accurately reflects reverted state
-- [ ] No false claims about complex progress features
-- [ ] Review reports updated with revert status
-- [ ] README.md shows actual available functionality
-- [ ] Lessons learned documented for future reference
-
----
-
-## Issue #6: Validate Clean State After Revert
-**Priority:** HIGH  
-**Category:** Validation & Testing
-
-**Issue Details:**
-After reverting the problematic code, comprehensive validation is needed to ensure the system is back to a clean, safe state equivalent to or better than the original first commit. All functionality should work correctly, and no residual issues should remain from the problematic implementation.
-
-**Implementation Hint:**
-Run full test suite, perform manual testing of all user workflows, check for any remaining global state or timer code, validate memory usage patterns, and confirm thread safety. Compare behavior with original commit to ensure equivalent or better functionality.
-
-**Acceptance Criteria:**
-- [ ] All automated tests pass
-- [ ] Manual testing of TUI mode successful
-- [ ] No global state variables remain
-- [ ] No background timers or goroutines leak
-- [ ] Memory usage stable across multiple operations
-- [ ] Thread safety validated
-- [ ] User experience equivalent to original
-- [ ] No security vulnerabilities detectable
-
----
-
-## 📋 Execution Plan
-
-### Phase 1: Preparation (30 minutes)
-1. Create backup branch: `git checkout -b backup-before-revert`
-2. Analyze current vs original interactive.go differences
-3. Identify exact lines to revert vs preserve
-
-### Phase 2: Selective Revert (60 minutes)  
-1. Extract original cleanSelectedProjects function
-2. Remove global state variables
-3. Remove timer management code
-4. Preserve infrastructure improvements
-5. Test build and basic functionality
-
-### Phase 3: Validation (45 minutes)
-1. Run full test suite
-2. Manual testing of all workflows
-3. Memory and resource usage validation
-4. Security vulnerability scan
-
-### Phase 4: Documentation Update (30 minutes)
-1. Update review reports with revert status
-2. Correct any false functionality claims
-3. Document lessons learned
-
-### Total Estimated Time: 2.75 hours
-
----
-
-**Next Action:** Execute Issue #1 - Revert Problematic Progress Implementation  
-**Success Criteria:** Clean, safe, functional codebase equivalent to original but with infrastructure improvements preserved
+**Next Action:** Execute Phase 1 - Column Layout Implementation  
+**Success Criteria:** Professional column-based tree display with enhanced visual hierarchy

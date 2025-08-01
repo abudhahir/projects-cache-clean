@@ -21,10 +21,10 @@ type Settings struct {
 var (
 	globalConfig *Config
 	configPaths  = []string{
-		"config.json",                           // Current directory
-		"cache-remover-config.json",             // Current directory with app prefix
+		"config.json",               // Current directory
+		"cache-remover-config.json", // Current directory with app prefix
 		filepath.Join(os.Getenv("HOME"), ".cache-remover", "config.json"), // User home
-		"/etc/cache-remover/config.json",       // System-wide
+		"/etc/cache-remover/config.json",                                  // System-wide
 	}
 )
 

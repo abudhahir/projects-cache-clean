@@ -79,22 +79,23 @@ cd ../..
 ./cache-remover-utility --ui test-area/
 ```
 **Expected Behavior:**
-1. **Loading Screen**: Shows spinner while scanning
-2. **Tree View**: Shows hierarchical directory structure (NEW!)
-3. **Tree Navigation**: 
+1. **Directory Argument**: ✅ **FIXED** - TUI now correctly scans the specified directory (`test-area/`)
+2. **Loading Screen**: Shows spinner while scanning
+3. **Tree View**: Shows hierarchical directory structure (NEW!)
+4. **Tree Navigation**: 
    - Use ↑/↓ or j/k to navigate up/down
    - Use ←/→ or h/l to collapse/expand directories
    - Press Space to select projects or directories
    - Press 't' to toggle between tree and list view
    - Press 'a' to select all, 'd' to deselect all
-4. **Directory Selection**: Select entire directory trees at once
-5. **Details View**: Press 'v' on a project to see cache breakdown
-6. **Cleaning**: 
+5. **Directory Selection**: Select entire directory trees at once
+6. **Details View**: Press 'v' on a project to see cache breakdown
+7. **Cleaning**: 
    - Press 'c' to clean selected projects
    - Confirm with 'y'
    - See "Cleaning [project-name]..." messages
    - View final statistics
-7. **Exit**: Press 'q' or Esc
+8. **Exit**: Press 'q' or Esc
 
 ### **Test 4: Command Line Cleanup**
 ```bash

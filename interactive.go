@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
@@ -27,7 +28,9 @@ var (
 
 	selectedItemStyle = lipgloss.NewStyle().
 				PaddingLeft(2).
-				Foreground(lipgloss.Color("170"))
+				Foreground(lipgloss.Color("230")).
+				Background(lipgloss.Color("62")).
+				Bold(true)
 
 	paginationStyle = list.DefaultStyles().PaginationStyle.PaddingLeft(4)
 
@@ -47,22 +50,37 @@ var (
 
 	errorStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("196"))
+
+	// Enhanced styles for improved UX
+	loadingStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("99")).
+			Bold(true)
+
+	statusBarStyle = lipgloss.NewStyle().
+			Background(lipgloss.Color("236")).
+			Foreground(lipgloss.Color("250")).
+			Padding(0, 1).
+			Bold(true)
+
+	infoStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("81")).
+			Bold(true)
 )
 
 type keyMap struct {
-	Up         key.Binding
-	Down       key.Binding
-	Left       key.Binding
-	Right      key.Binding
-	Select     key.Binding
-	Quit       key.Binding
-	Help       key.Binding
-	Clean      key.Binding
-	Refresh    key.Binding
-	Details    key.Binding
-	SelectAll  key.Binding
+	Up          key.Binding
+	Down        key.Binding
+	Left        key.Binding
+	Right       key.Binding
+	Select      key.Binding
+	Quit        key.Binding
+	Help        key.Binding
+	Clean       key.Binding
+	Refresh     key.Binding
+	Details     key.Binding
+	SelectAll   key.Binding
 	DeselectAll key.Binding
-	ToggleView key.Binding
+	ToggleView  key.Binding
 }
 
 func (k keyMap) ShortHelp() []key.Binding {
@@ -133,11 +151,11 @@ var keys = keyMap{
 }
 
 type ProjectItem struct {
-	Project     *Project
-	Selected    bool
-	CacheItems  []CacheItem
-	TotalSize   int64
-	ItemCount   int
+	Project    *Project
+	Selected   bool
+	CacheItems []CacheItem
+	TotalSize  int64
+	ItemCount  int
 }
 
 func (p ProjectItem) FilterValue() string {
@@ -149,15 +167,15 @@ func (p ProjectItem) Title() string {
 	if p.Selected {
 		icon = "●"
 	}
-	
+
 	sizeStr := formatBytes(p.TotalSize)
 	countStr := fmt.Sprintf("%d items", p.ItemCount)
-	
+
 	status := successStyle.Render("✓ Clean")
 	if p.ItemCount > 0 {
 		status = warningStyle.Render(fmt.Sprintf("🗑 %s (%s)", countStr, sizeStr))
 	}
-	
+
 	return fmt.Sprintf("%s %s [%s] - %s", icon, p.Project.Name, p.Project.Type, status)
 }
 
@@ -173,25 +191,32 @@ type Project struct {
 
 // TreeNode represents a node in the project directory tree
 type TreeNode struct {
-	Name           string         // Directory or project name
-	Path           string         // Full path
-	IsProject      bool           // true = project, false = directory
-	Project        *ProjectItem   // Only set if IsProject == true
-	Children       []*TreeNode    // Child nodes (subdirectories/projects)
-	Parent         *TreeNode      // Parent directory node
-	Expanded       bool           // Directory expansion state
-	Selected       bool           // Selection state
-	Level          int            // Depth level (for indentation)
-	ChildProjects  int            // Number of projects in subtree
-	ChildCacheSize int64          // Total cache size in subtree
+	Name           string       // Directory or project name
+	Path           string       // Full path
+	IsProject      bool         // true = project, false = directory
+	Project        *ProjectItem // Only set if IsProject == true
+	Children       []*TreeNode  // Child nodes (subdirectories/projects)
+	Parent         *TreeNode    // Parent directory node
+	Expanded       bool         // Directory expansion state
+	Selected       bool         // Selection state
+	Level          int          // Depth level (for indentation)
+	ChildProjects  int          // Number of projects in subtree
+	ChildCacheSize int64        // Total cache size in subtree
+	
+	// Phase 1 & 3: Enhanced metadata fields
+	FileSize       int64        // Individual file/directory size (0 if not calculated)
+	FileCount      int          // Number of files in directory (0 for files, -1 if not calculated)
+	LastModified   time.Time    // Last modification time (zero value if not set)
+	FileType       string       // "file", "directory", "project" (empty if not set)
+	IsFile         bool         // true for individual files, false for directories
 }
 
 // TreeModel manages the tree structure and display
 type TreeModel struct {
-	Root          *TreeNode      // Root directory node
-	FlatView      []*TreeNode    // Flattened view for display
-	CurrentIndex  int            // Currently selected item index
-	VisibleStart  int            // First visible item index for scrolling
+	Root         *TreeNode   // Root directory node
+	FlatView     []*TreeNode // Flattened view for display
+	CurrentIndex int         // Currently selected item index
+	VisibleStart int         // First visible item index for scrolling
 }
 
 type AppState int
@@ -212,26 +237,28 @@ type model struct {
 	spinner     spinner.Model
 	progress    progress.Model
 	projects    []ProjectItem
-	tree        *TreeModel      // Tree structure for projects
-	useTreeView bool            // Toggle between tree and list view
+	tree        *TreeModel // Tree structure for projects
+	useTreeView bool       // Toggle between tree and list view
 	loading     bool
 	err         error
-	
+	rootDir     string     // Directory to scan for projects
+	loadingProgress string // Progress message during loading
+
 	// Cleaning state
-	cleaningIndex      int
-	cleaningProgress   float64
-	cleaningResults    CleanupStats
-	currentProject     string
-	totalProjects      int
-	projectsCompleted  int
-	
+	cleaningIndex     int
+	cleaningProgress  float64
+	cleaningResults   CleanupStats
+	currentProject    string
+	totalProjects     int
+	projectsCompleted int
+
 	// Details view
 	detailsProject *ProjectItem
-	
+
 	// Confirmation
 	confirmMessage string
 	confirmAction  func() tea.Cmd
-	
+
 	width  int
 	height int
 }
@@ -239,6 +266,10 @@ type model struct {
 type loadProjectsMsg struct {
 	projects []ProjectItem
 	err      error
+}
+
+type loadProgressMsg struct {
+	progress string
 }
 
 type cleanProgressMsg struct {
@@ -253,7 +284,6 @@ type cleanProgressMsg struct {
 type cleanCompleteMsg struct {
 	results CleanupStats
 }
-
 
 func initialModel(rootDir string) model {
 	s := spinner.New()
@@ -280,8 +310,9 @@ func initialModel(rootDir string) model {
 		list:        l,
 		spinner:     s,
 		progress:    prog,
-		useTreeView: true, // Enable tree view by default
+		useTreeView: true, // Enable tree view by default  
 		loading:     true,
+		rootDir:     rootDir, // Store the directory to scan
 	}
 
 	return m
@@ -290,42 +321,42 @@ func initialModel(rootDir string) model {
 func (m model) Init() tea.Cmd {
 	return tea.Batch(
 		m.spinner.Tick,
-		loadProjects("."),
+		loadProjects(m.rootDir), // Use the stored directory instead of hardcoded "."
 	)
 }
 
 func loadProjects(rootDir string) tea.Cmd {
 	return tea.Cmd(func() tea.Msg {
 		projects := []ProjectItem{}
-		
+
 		err := filepath.Walk(rootDir, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				// Log error but continue walking other paths
 				return nil
 			}
-			
+
 			if !info.IsDir() {
 				return nil
 			}
-			
+
 			// Skip deep nesting and hidden directories
 			depth := strings.Count(strings.TrimPrefix(path, rootDir), string(os.PathSeparator))
 			if depth > 10 || strings.Contains(path, "/.") {
 				return filepath.SkipDir
 			}
-			
+
 			// Skip descending into cache directories - they're meant to be removed as units
 			if isCacheDirectory(info.Name()) {
 				return filepath.SkipDir
 			}
-			
+
 			if projectType := detectProjectType(path); projectType != nil {
 				cacheItems := findCacheItems(path, projectType.CacheConfig)
 				totalSize := int64(0)
 				for _, item := range cacheItems {
 					totalSize += item.Size
 				}
-				
+
 				project := ProjectItem{
 					Project: &Project{
 						Name: filepath.Base(path),
@@ -339,15 +370,15 @@ func loadProjects(rootDir string) tea.Cmd {
 				}
 				projects = append(projects, project)
 			}
-			
+
 			return nil
 		})
-		
+
 		// Sort projects by cache size (largest first)
 		sort.Slice(projects, func(i, j int) bool {
 			return projects[i].TotalSize > projects[j].TotalSize
 		})
-		
+
 		return loadProjectsMsg{projects: projects, err: err}
 	})
 }
@@ -365,15 +396,15 @@ func buildProjectTree(projects []ProjectItem, rootPath string) *TreeModel {
 		ChildProjects:  0,
 		ChildCacheSize: 0,
 	}
-	
+
 	// Build tree by inserting each project
 	for i := range projects {
 		insertProjectIntoTree(root, &projects[i], rootPath)
 	}
-	
+
 	// Calculate aggregate statistics
 	calculateTreeStats(root)
-	
+
 	// Create tree model
 	treeModel := &TreeModel{
 		Root:         root,
@@ -381,10 +412,10 @@ func buildProjectTree(projects []ProjectItem, rootPath string) *TreeModel {
 		CurrentIndex: 0,
 		VisibleStart: 0,
 	}
-	
+
 	// Generate initial flat view
 	treeModel.rebuildFlatView()
-	
+
 	return treeModel
 }
 
@@ -395,17 +426,17 @@ func insertProjectIntoTree(root *TreeNode, project *ProjectItem, rootPath string
 	if err != nil {
 		relativePath = project.Project.Path
 	}
-	
+
 	// Split path into components
 	pathComponents := strings.Split(relativePath, string(filepath.Separator))
 	if pathComponents[0] == "." {
 		pathComponents = pathComponents[1:]
 	}
-	
+
 	// Navigate/create directory structure
 	currentNode := root
 	currentPath := rootPath
-	
+
 	// Create intermediate directory nodes
 	for i, component := range pathComponents {
 		if i == len(pathComponents)-1 {
@@ -426,7 +457,7 @@ func insertProjectIntoTree(root *TreeNode, project *ProjectItem, rootPath string
 		} else {
 			// This is an intermediate directory
 			currentPath = filepath.Join(currentPath, component)
-			
+
 			// Check if directory node already exists
 			var dirNode *TreeNode
 			for _, child := range currentNode.Children {
@@ -435,7 +466,7 @@ func insertProjectIntoTree(root *TreeNode, project *ProjectItem, rootPath string
 					break
 				}
 			}
-			
+
 			// Create directory node if it doesn't exist
 			if dirNode == nil {
 				dirNode = &TreeNode{
@@ -451,7 +482,7 @@ func insertProjectIntoTree(root *TreeNode, project *ProjectItem, rootPath string
 				}
 				currentNode.Children = append(currentNode.Children, dirNode)
 			}
-			
+
 			currentNode = dirNode
 		}
 	}
@@ -463,15 +494,15 @@ func calculateTreeStats(node *TreeNode) {
 		// Project nodes already have their stats set
 		return
 	}
-	
+
 	// Reset stats
 	node.ChildProjects = 0
 	node.ChildCacheSize = 0
-	
+
 	// Calculate stats from children
 	for _, child := range node.Children {
 		calculateTreeStats(child) // Recursive call
-		
+
 		if child.IsProject {
 			node.ChildProjects += 1
 			node.ChildCacheSize += child.Project.TotalSize
@@ -497,10 +528,10 @@ func (tm *TreeModel) flattenNode(node *TreeNode) {
 		}
 		return
 	}
-	
+
 	// Add this node to flat view
 	tm.FlatView = append(tm.FlatView, node)
-	
+
 	// If it's a directory and expanded, add its children
 	if !node.IsProject && node.Expanded {
 		for _, child := range node.Children {
@@ -539,7 +570,7 @@ func (tm *TreeModel) toggleExpansion() {
 	if node != nil && !node.IsProject && len(node.Children) > 0 {
 		node.Expanded = !node.Expanded
 		tm.rebuildFlatView()
-		
+
 		// Ensure current index is still valid after rebuild
 		if tm.CurrentIndex >= len(tm.FlatView) {
 			tm.CurrentIndex = len(tm.FlatView) - 1
@@ -562,7 +593,7 @@ func (tm *TreeModel) collapseNode() {
 	if node != nil && !node.IsProject && node.Expanded {
 		node.Expanded = false
 		tm.rebuildFlatView()
-		
+
 		// Ensure current index is still valid after rebuild
 		if tm.CurrentIndex >= len(tm.FlatView) {
 			tm.CurrentIndex = len(tm.FlatView) - 1
@@ -592,7 +623,7 @@ func (tm *TreeModel) isDirectorySelected(node *TreeNode) bool {
 	if node.IsProject {
 		return node.Selected
 	}
-	
+
 	hasProjects := false
 	for _, child := range node.Children {
 		if child.IsProject {
@@ -607,7 +638,7 @@ func (tm *TreeModel) isDirectorySelected(node *TreeNode) bool {
 			}
 		}
 	}
-	
+
 	return hasProjects // Return true only if has projects and all are selected
 }
 
@@ -616,13 +647,13 @@ func (tm *TreeModel) hasProjectsInSubtree(node *TreeNode) bool {
 	if node.IsProject {
 		return true
 	}
-	
+
 	for _, child := range node.Children {
 		if tm.hasProjectsInSubtree(child) {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
@@ -633,7 +664,7 @@ func (tm *TreeModel) setDirectorySelection(node *TreeNode, selected bool) {
 		node.Project.Selected = selected
 		return
 	}
-	
+
 	for _, child := range node.Children {
 		tm.setDirectorySelection(child, selected)
 	}
@@ -652,7 +683,7 @@ func (tm *TreeModel) collectSelectedProjects(node *TreeNode, selected *[]Project
 		*selected = append(*selected, *node.Project)
 		return
 	}
-	
+
 	for _, child := range node.Children {
 		tm.collectSelectedProjects(child, selected)
 	}
@@ -670,11 +701,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.list.SetHeight(msg.Height - 4)
 		m.progress.Width = msg.Width - 4
 
+	case loadProgressMsg:
+		m.loadingProgress = msg.progress
+		return m, nil
+
 	case loadProjectsMsg:
 		m.loading = false
 		m.err = msg.err
 		m.projects = msg.projects
-		
+
 		// Build tree structure from projects
 		if len(m.projects) > 0 {
 			// Use the common ancestor path as root, or current directory
@@ -693,23 +728,23 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.tree = buildProjectTree(m.projects, rootPath)
 		}
-		
+
 		// Set up list view (for backward compatibility)
 		items := make([]list.Item, len(m.projects))
 		for i, project := range m.projects {
 			items[i] = project
 		}
-		
+
 		m.list.SetItems(items)
 		m.state = StateProjectList
-		
+
 		totalSize := int64(0)
 		totalItems := 0
 		for _, p := range m.projects {
 			totalSize += p.TotalSize
 			totalItems += p.ItemCount
 		}
-		
+
 		m.list.Title = fmt.Sprintf("🧹 Cache Remover - %d Projects (%s potential cleanup)",
 			len(m.projects), formatBytes(totalSize))
 
@@ -733,31 +768,31 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch {
 			case key.Matches(msg, m.keys.Quit):
 				return m, tea.Quit
-				
+
 			case key.Matches(msg, m.keys.ToggleView):
 				// Toggle between tree and list view
 				m.useTreeView = !m.useTreeView
-				
+
 			case key.Matches(msg, m.keys.Up):
 				if m.useTreeView && m.tree != nil {
 					m.tree.moveUp()
 				}
-				
+
 			case key.Matches(msg, m.keys.Down):
 				if m.useTreeView && m.tree != nil {
 					m.tree.moveDown()
 				}
-				
+
 			case key.Matches(msg, m.keys.Left):
 				if m.useTreeView && m.tree != nil {
 					m.tree.collapseNode()
 				}
-				
+
 			case key.Matches(msg, m.keys.Right):
 				if m.useTreeView && m.tree != nil {
 					m.tree.expandNode()
 				}
-				
+
 			case key.Matches(msg, m.keys.Select):
 				if m.useTreeView && m.tree != nil {
 					// Tree view: toggle selection or expand/collapse
@@ -782,7 +817,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						}
 					}
 				}
-				
+
 			case key.Matches(msg, m.keys.SelectAll):
 				if m.useTreeView && m.tree != nil {
 					// Tree view: select all projects
@@ -800,7 +835,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 					m.list.SetItems(items)
 				}
-				
+
 			case key.Matches(msg, m.keys.DeselectAll):
 				if m.useTreeView && m.tree != nil {
 					// Tree view: deselect all projects
@@ -816,10 +851,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 					m.list.SetItems(items)
 				}
-				
+
 			case key.Matches(msg, m.keys.Details):
 				var detailProject *ProjectItem
-				
+
 				if m.useTreeView && m.tree != nil {
 					// Tree view: get current project
 					node := m.tree.getCurrentNode()
@@ -835,15 +870,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						}
 					}
 				}
-				
+
 				if detailProject != nil {
 					m.detailsProject = detailProject
 					m.state = StateDetails
 				}
-				
+
 			case key.Matches(msg, m.keys.Clean):
 				var selectedProjects []ProjectItem
-				
+
 				if m.useTreeView && m.tree != nil {
 					// Tree view: get selected projects from tree
 					selectedProjects = m.tree.getSelectedProjects()
@@ -855,7 +890,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						}
 					}
 				}
-				
+
 				if len(selectedProjects) > 0 {
 					totalSize := int64(0)
 					totalItems := 0
@@ -863,7 +898,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						totalSize += project.TotalSize
 						totalItems += project.ItemCount
 					}
-					
+
 					m.confirmMessage = fmt.Sprintf(
 						"Clean %d projects?\nThis will remove %d cache items (%s)\n\nPress 'y' to confirm, 'n' to cancel",
 						len(selectedProjects), totalItems, formatBytes(totalSize))
@@ -877,13 +912,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 					m.state = StateConfirm
 				}
-				
+
 			case key.Matches(msg, m.keys.Refresh):
 				m.loading = true
 				m.state = StateLoading
 				return m, tea.Batch(m.spinner.Tick, loadProjects("."))
 			}
-			
+
 		case StateDetails:
 			switch {
 			case key.Matches(msg, m.keys.Quit):
@@ -891,7 +926,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case msg.String() == "esc":
 				m.state = StateProjectList
 			}
-			
+
 		case StateConfirm:
 			switch msg.String() {
 			case "y", "Y":
@@ -902,13 +937,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "n", "N", "esc":
 				m.state = StateProjectList
 			}
-			
+
 		case StateCleaning:
 			switch {
 			case key.Matches(msg, m.keys.Quit):
 				return m, tea.Quit
 			}
-			
+
 		case StateResults:
 			switch {
 			case key.Matches(msg, m.keys.Quit):
@@ -935,7 +970,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Update both spinner and progress bar during cleaning
 		m.spinner, cmd = m.spinner.Update(msg)
 		cmds = append(cmds, cmd)
-		
+
 		var progressModel tea.Model
 		progressModel, cmd = m.progress.Update(msg)
 		if pm, ok := progressModel.(progress.Model); ok {
@@ -951,17 +986,17 @@ func cleanSelectedProjects(projects []ProjectItem) tea.Cmd {
 	return tea.Cmd(func() tea.Msg {
 		var wg sync.WaitGroup
 		results := CleanupStats{}
-		
+
 		for _, project := range projects {
 			// Send progress update
 			tea.Printf("Cleaning %s...\n", project.Project.Name)
-			
+
 			removedItems, removedSize := removeCacheItems(project.CacheItems, false)
 			results.TotalCacheItems += removedItems
 			results.TotalSizeRemoved += removedSize
 			results.TotalProjects++
 		}
-		
+
 		wg.Wait()
 		return cleanCompleteMsg{results: results}
 	})
@@ -970,8 +1005,8 @@ func cleanSelectedProjects(projects []ProjectItem) tea.Cmd {
 func (m model) View() string {
 	switch m.state {
 	case StateLoading:
-		return fmt.Sprintf("\n\n   %s Loading projects...\n\n", m.spinner.View())
-		
+		return m.renderLoadingView()
+
 	case StateProjectList:
 		if m.useTreeView && m.tree != nil {
 			return m.renderTreeView()
@@ -985,7 +1020,7 @@ func (m model) View() string {
 					selectedSize += project.TotalSize
 				}
 			}
-			
+
 			statusBar := ""
 			if selectedCount > 0 {
 				statusBar = warningStyle.Render(fmt.Sprintf(
@@ -994,19 +1029,19 @@ func (m model) View() string {
 			} else {
 				statusBar = helpStyle.Render(" Use ↑/↓ to navigate, Space to select, 'c' to clean, 't' to toggle tree view ")
 			}
-			
+
 			return m.list.View() + "\n" + statusBar
 		}
-		
+
 	case StateDetails:
 		if m.detailsProject == nil {
 			return "No project selected"
 		}
-		
+
 		details := fmt.Sprintf("📁 %s (%s)\n", m.detailsProject.Project.Name, m.detailsProject.Project.Type)
 		details += fmt.Sprintf("Path: %s\n\n", m.detailsProject.Project.Path)
 		details += fmt.Sprintf("Cache Items (%d):\n", len(m.detailsProject.CacheItems))
-		
+
 		for _, item := range m.detailsProject.CacheItems {
 			itemType := "📄"
 			if item.Type == "directory" {
@@ -1014,31 +1049,31 @@ func (m model) View() string {
 			}
 			details += fmt.Sprintf("  %s %s (%s)\n", itemType, filepath.Base(item.Path), formatBytes(item.Size))
 		}
-		
+
 		details += fmt.Sprintf("\nTotal Size: %s\n", formatBytes(m.detailsProject.TotalSize))
 		details += helpStyle.Render("\nPress ESC to go back")
-		
+
 		return details
-		
+
 	case StateConfirm:
 		return fmt.Sprintf("\n%s\n", warningStyle.Render(m.confirmMessage))
-		
+
 	case StateCleaning:
 		// Create animated spinner for active cleanup
 		spinnerView := m.spinner.View()
-		
+
 		// Status message
 		status := fmt.Sprintf("%s Cleaning cache files...", spinnerView)
 		if m.currentProject != "" && m.currentProject != "Starting..." {
 			status = fmt.Sprintf("%s Cleaning: %s", spinnerView, m.currentProject)
 		}
-		
+
 		// Progress information
 		progressInfo := "Initializing cleanup..."
 		if m.totalProjects > 0 {
 			progressInfo = fmt.Sprintf("Project %d of %d", m.projectsCompleted+1, m.totalProjects)
 		}
-		
+
 		// Progress bar - always show some progress during cleanup
 		displayProgress := m.cleaningProgress
 		if displayProgress == 0.0 && m.totalProjects > 0 {
@@ -1046,22 +1081,22 @@ func (m model) View() string {
 			displayProgress = 0.1
 		}
 		progressBar := m.progress.ViewAs(displayProgress)
-		
+
 		// Current statistics
 		stats := fmt.Sprintf(
 			"📊 Status: Processing cache directories\n"+
-			"🗑️  Items removed: %d\n"+
-			"💾 Space reclaimed: %s",
+				"🗑️  Items removed: %d\n"+
+				"💾 Space reclaimed: %s",
 			m.cleaningResults.TotalCacheItems,
 			formatBytes(m.cleaningResults.TotalSizeRemoved))
-		
+
 		return fmt.Sprintf("\n\n   %s\n   %s\n\n   %s\n\n   %.1f%% Complete\n\n%s\n\n   💡 Tip: This may take a moment for large cache directories\n   Press 'q' to cancel\n\n",
 			status,
 			progressInfo,
 			progressBar,
 			displayProgress*100,
 			stats)
-		
+
 	case StateResults:
 		results := statsStyle.Render(fmt.Sprintf(
 			"✅ Cleanup Complete!\n\n"+
@@ -1072,11 +1107,39 @@ func (m model) View() string {
 			m.cleaningResults.TotalProjects,
 			m.cleaningResults.TotalCacheItems,
 			formatBytes(m.cleaningResults.TotalSizeRemoved)))
-		
+
 		return fmt.Sprintf("\n%s\n", results)
 	}
-	
+
 	return ""
+}
+
+// renderLoadingView renders an enhanced loading screen with progress information
+func (m model) renderLoadingView() string {
+	var output strings.Builder
+	
+	// Title
+	title := titleStyle.Render("🧹 Cache Remover - Scanning Projects")
+	output.WriteString(title + "\n\n")
+	
+	// Loading status with spinner
+	loadingText := "🔍 Scanning directory: " + m.rootDir
+	if m.loadingProgress != "" {
+		loadingText = m.loadingProgress
+	}
+	
+	loadingLine := fmt.Sprintf("   %s %s", m.spinner.View(), loadingStyle.Render(loadingText))
+	output.WriteString(loadingLine + "\n\n")
+	
+	// Status information
+	statusInfo := statusBarStyle.Render(" Please wait while we discover your projects... ")
+	output.WriteString(statusInfo + "\n\n")
+	
+	// Help text
+	helpText := helpStyle.Render("Press 'q' to quit")
+	output.WriteString(helpText)
+	
+	return output.String()
 }
 
 // renderTreeView renders the tree structure with proper styling and navigation
@@ -1084,26 +1147,45 @@ func (m model) renderTreeView() string {
 	if m.tree == nil {
 		return "No tree data available"
 	}
-	
+
 	// Calculate selected projects and total size
 	selectedProjects := m.tree.getSelectedProjects()
 	selectedSize := int64(0)
 	for _, project := range selectedProjects {
 		selectedSize += project.TotalSize
 	}
-	
+
 	// Build the tree display
 	var output strings.Builder
-	
+
 	// Title with tree icon
 	title := titleStyle.Render("🌳 Cache Remover - Tree View")
 	output.WriteString(title + "\n\n")
 	
+	// Add column headers
+	colWidths := m.calculateColumnWidths()
+	headerLine := fmt.Sprintf("%-*s", colWidths.name, "            Name")
+	
+	if colWidths.gitBranch > 0 {
+		headerLine += fmt.Sprintf(" | %-*s", colWidths.gitBranch, "Git Branch")
+	}
+	
+	headerLine += fmt.Sprintf(" | %*s", colWidths.size, "Size")
+	output.WriteString(helpStyle.Render(headerLine) + "\n")
+	
+	// Add separator line
+	separatorLine := strings.Repeat("─", colWidths.name)
+	if colWidths.gitBranch > 0 {
+		separatorLine += "─┼─" + strings.Repeat("─", colWidths.gitBranch)
+	}
+	separatorLine += "─┼─" + strings.Repeat("─", colWidths.size)
+	output.WriteString(helpStyle.Render(separatorLine) + "\n")
+
 	// Render visible tree nodes
-	visibleHeight := m.height - 6 // Leave space for title and status bar
+	visibleHeight := m.height - 8 // Leave space for title, headers, separator, and status bar
 	startIdx := 0
 	endIdx := len(m.tree.FlatView)
-	
+
 	// Simple scrolling logic
 	if len(m.tree.FlatView) > visibleHeight {
 		if m.tree.CurrentIndex >= visibleHeight/2 {
@@ -1118,117 +1200,365 @@ func (m model) renderTreeView() string {
 			}
 		}
 	}
-	
+
 	// Render each visible node
 	for i := startIdx; i < endIdx; i++ {
 		if i >= len(m.tree.FlatView) {
 			break
 		}
-		
+
 		node := m.tree.FlatView[i]
 		line := m.renderTreeNode(node, i == m.tree.CurrentIndex)
 		output.WriteString(line + "\n")
 	}
-	
-	// Status bar
-	var statusBar string
-	if len(selectedProjects) > 0 {
-		statusBar = warningStyle.Render(fmt.Sprintf(
-			" Selected: %d projects (%s) - Press 'c' to clean ",
-			len(selectedProjects), formatBytes(selectedSize)))
-	} else {
-		statusBar = helpStyle.Render(" ↑/↓:navigate ←/→:expand/collapse Space:select 'c':clean 't':list view ")
-	}
-	
+
+	// Enhanced status bar with comprehensive statistics
+	statusBar := m.renderEnhancedStatusBar(selectedProjects, selectedSize)
 	output.WriteString("\n" + statusBar)
-	
+
 	return output.String()
 }
 
-// renderTreeNode renders a single tree node with proper indentation and styling
+// renderEnhancedStatusBar creates a comprehensive status bar with project statistics
+func (m model) renderEnhancedStatusBar(selectedProjects []ProjectItem, selectedSize int64) string {
+	var statusLines []string
+	
+	// Calculate total statistics
+	totalProjects := len(m.projects)
+	var totalCacheSize int64
+	var projectsWithCache int
+	
+	for _, project := range m.projects {
+		if project.TotalSize > 0 {
+			totalCacheSize += project.TotalSize
+			projectsWithCache++
+		}
+	}
+	
+	// Main statistics line
+	statsLine := fmt.Sprintf("📊 Projects: %d | With Cache: %d | Total Cache: %s", 
+		totalProjects, projectsWithCache, formatBytes(totalCacheSize))
+	
+	if len(selectedProjects) > 0 {
+		// Selection statistics
+		selectionLine := fmt.Sprintf("🎯 Selected: %d projects | Will Reclaim: %s", 
+			len(selectedProjects), formatBytes(selectedSize))
+		statusLines = append(statusLines, warningStyle.Render(" "+selectionLine+" "))
+		statusLines = append(statusLines, infoStyle.Render(" "+statsLine+" "))
+		statusLines = append(statusLines, helpStyle.Render(" Press 'c' to clean selected, Space to select/deselect, 'q' to quit "))
+	} else {
+		// No selection - show discovery info and help
+		statusLines = append(statusLines, infoStyle.Render(" "+statsLine+" "))
+		if totalProjects == 0 {
+			statusLines = append(statusLines, helpStyle.Render(" No projects found in this directory "))
+		} else {
+			statusLines = append(statusLines, helpStyle.Render(" ↑/↓:navigate ←/→:expand/collapse Space:select 'c':clean 't':list view "))
+		}
+	}
+	
+	return strings.Join(statusLines, "\n")
+}
+
+// Column width configuration for responsive layout
+type columnWidths struct {
+	name     int
+	gitBranch int  
+	size     int
+}
+
+// calculateColumnWidths determines optimal column widths based on terminal width
+func (m model) calculateColumnWidths() columnWidths {
+	totalWidth := m.width
+	if totalWidth < 70 {
+		// Narrow terminal - minimal layout
+		return columnWidths{
+			name:     totalWidth - 25,
+			gitBranch: 0, // Hide git branch column
+			size:     15,
+		}
+	} else if totalWidth < 110 {
+		// Medium terminal 
+		return columnWidths{
+			name:     totalWidth - 45,
+			gitBranch: 15,
+			size:     20,
+		}
+	} else {
+		// Wide terminal - full layout with enhanced size column
+		return columnWidths{
+			name:     totalWidth - 55,
+			gitBranch: 20,
+			size:     25,
+		}
+	}
+}
+
+// getTreeStructureSymbol returns proper Unicode box-drawing character
+func getTreeStructureSymbol(node *TreeNode, isLast bool) string {
+	if node.Level == 0 {
+		return ""
+	}
+	
+	if isLast {
+		return "└── "
+	} else {
+		return "├── "
+	}
+}
+
+// isLastChild determines if a node is the last child of its parent
+func isLastChild(node *TreeNode) bool {
+	if node.Parent == nil {
+		return true
+	}
+	
+	// Find this node in parent's children
+	for i, child := range node.Parent.Children {
+		if child == node {
+			return i == len(node.Parent.Children)-1
+		}
+	}
+	return false
+}
+
+// getFileTypeIcon returns appropriate icon based on file type and project type
+func getFileTypeIcon(node *TreeNode) string {
+	if node.IsProject && node.Project != nil {
+		// Project type icons
+		switch strings.ToLower(node.Project.Project.Type) {
+		case "node.js", "nodejs":
+			return "📦"
+		case "python":
+			return "🐍"
+		case "java", "java/maven":
+			return "☕"
+		case "go":
+			return "🐹"
+		case "rust":
+			return "🦀"
+		case "angular":
+			return "🅰️"
+		case "flutter":
+			return "🐦"
+		default:
+			return "🗂️"
+		}
+	} else if node.IsFile {
+		// File icons
+		ext := strings.ToLower(filepath.Ext(node.Name))
+		switch ext {
+		case ".go":
+			return "🐹"
+		case ".js", ".ts", ".jsx", ".tsx":
+			return "📜"
+		case ".py":
+			return "🐍"
+		case ".java":
+			return "☕"
+		case ".rs":
+			return "🦀"
+		case ".md":
+			return "📖"
+		case ".json":
+			return "📋"
+		case ".yml", ".yaml":
+			return "⚙️"
+		default:
+			return "📄"
+		}
+	} else {
+		// Directory icons
+		if len(node.Children) == 0 {
+			return "📁"
+		} else if node.Expanded {
+			return "📂"
+		} else {
+			return "📁"
+		}
+	}
+}
+
+// getSelectionIcon returns appropriate selection indicator
+func getSelectionIcon(node *TreeNode, m model) string {
+	if node.IsProject {
+		if node.Selected {
+			return "🔴" // Selected project
+		} else {
+			return "🔘" // Unselected project
+		}
+	} else {
+		// For directories, check if any children are selected
+		isDirectorySelected := m.tree.isDirectorySelected(node)
+		if isDirectorySelected {
+			return "🟡" // Partially selected directory
+		} else {
+			return "🔘" // Unselected directory
+		}
+	}
+}
+
+// populateNodeMetadata calculates and populates file size and count for a node
+func populateNodeMetadata(node *TreeNode) {
+	if node.FileSize > 0 || node.Path == "" {
+		return // Already populated or invalid path
+	}
+	
+	stat, err := os.Stat(node.Path)
+	if err != nil {
+		return // Can't access file/directory
+	}
+	
+	node.LastModified = stat.ModTime()
+	
+	if stat.IsDir() {
+		node.IsFile = false
+		node.FileType = "directory"
+		if node.IsProject {
+			node.FileType = "project"
+		}
+		
+		// Calculate directory size and file count (with limits for performance)
+		size, count := calculateDirSizeAndCount(node.Path, 1000) // Limit to 1000 files for performance
+		node.FileSize = size
+		node.FileCount = count
+	} else {
+		node.IsFile = true
+		node.FileType = "file"
+		node.FileSize = stat.Size()
+		node.FileCount = 0 // Files don't have child file counts
+	}
+}
+
+// calculateDirSizeAndCount calculates directory size and file count with limits and optimizations
+func calculateDirSizeAndCount(dirPath string, maxFiles int) (int64, int) {
+	var totalSize int64
+	var fileCount int
+	
+	err := filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil // Skip inaccessible files
+		}
+		
+		// Skip cache directories to avoid performance issues (same optimization as main scanning)
+		if info.IsDir() && isCacheDirectory(info.Name()) {
+			return filepath.SkipDir
+		}
+		
+		fileCount++
+		if fileCount > maxFiles {
+			return filepath.SkipDir // Stop if too many files for performance
+		}
+		
+		if !info.IsDir() {
+			totalSize += info.Size()
+		}
+		return nil
+	})
+	
+	if err != nil {
+		return 0, -1 // Error calculating
+	}
+	
+	return totalSize, fileCount
+}
+
+// truncateString truncates text with ellipsis if it exceeds maxWidth
+func truncateString(text string, maxWidth int) string {
+	if len(text) <= maxWidth {
+		return text
+	}
+	if maxWidth <= 3 {
+		return "..."
+	}
+	return text[:maxWidth-3] + "..."
+}
+
+// renderTreeNode renders a single tree node with column-based layout
 func (m model) renderTreeNode(node *TreeNode, isSelected bool) string {
+	// Populate metadata if not already done
+	populateNodeMetadata(node)
+	
+	// Calculate column widths
+	colWidths := m.calculateColumnWidths()
+	
 	var output strings.Builder
 	
-	// Add indentation based on level
-	indent := strings.Repeat("  ", node.Level)
-	output.WriteString(indent)
+	// Build name column with tree structure
+	var nameColumn strings.Builder
 	
-	// Add tree structure symbols
+	// Add tree structure indentation with proper box-drawing characters
+	var indent string
 	if node.Level > 0 {
-		output.WriteString("├─ ")
+		// Build proper tree structure with correct box-drawing characters
+		indent = strings.Repeat("│   ", node.Level-1)
+		isLast := isLastChild(node)
+		indent += getTreeStructureSymbol(node, isLast)
 	}
 	
-	if node.IsProject {
-		// Render project node
-		selectionIcon := "○"
-		if node.Selected {
-			selectionIcon = "●"
-		}
-		
-		projectInfo := fmt.Sprintf("%s %s [%s]", 
-			selectionIcon, 
-			node.Name, 
-			node.Project.Project.Type)
-		
-		// Add cache information
-		if node.Project.ItemCount > 0 {
-			cacheInfo := fmt.Sprintf(" - 🗑 %d items (%s)", 
-				node.Project.ItemCount, 
-				formatBytes(node.Project.TotalSize))
-			projectInfo += warningStyle.Render(cacheInfo)
-		} else {
-			projectInfo += successStyle.Render(" - ✓ Clean")
-		}
-		
-		// Highlight current selection
-		if isSelected {
-			projectInfo = selectedItemStyle.Render("> " + projectInfo)
-		} else {
-			projectInfo = itemStyle.Render(projectInfo)
-		}
-		
-		output.WriteString(projectInfo)
-		
-	} else {
-		// Render directory node
-		var dirIcon string
-		if len(node.Children) == 0 {
-			dirIcon = "📁"
-		} else if node.Expanded {
-			dirIcon = "📂"
-		} else {
-			dirIcon = "📁"
-		}
-		
-		// Check if directory should be considered selected
-		isDirectorySelected := m.tree.isDirectorySelected(node)
-		selectionIcon := "○"
-		if isDirectorySelected {
-			selectionIcon = "●"
-		}
-		
-		directoryInfo := fmt.Sprintf("%s %s %s", 
-			selectionIcon,
-			dirIcon, 
-			node.Name)
-		
-		// Add aggregate statistics
-		if node.ChildProjects > 0 {
-			stats := fmt.Sprintf(" [%d projects, %s]", 
-				node.ChildProjects, 
-				formatBytes(node.ChildCacheSize))
-			directoryInfo += helpStyle.Render(stats)
-		}
-		
-		// Highlight current selection
-		if isSelected {
-			directoryInfo = selectedItemStyle.Render("> " + directoryInfo)
-		} else {
-			directoryInfo = itemStyle.Render(directoryInfo)
-		}
-		
-		output.WriteString(directoryInfo)
+	// Add selection and file type icons
+	selectionIcon := getSelectionIcon(node, m)
+	fileIcon := getFileTypeIcon(node)
+	
+	nameColumn.WriteString(indent)
+	nameColumn.WriteString(selectionIcon)
+	nameColumn.WriteString(" ")
+	nameColumn.WriteString(fileIcon)
+	nameColumn.WriteString("  ")
+	nameColumn.WriteString(node.Name)
+	
+	// Truncate name column if too long
+	nameText := truncateString(nameColumn.String(), colWidths.name)
+	
+	// Build git branch column (placeholder for now - Phase 2)
+	gitBranchText := ""
+	if colWidths.gitBranch > 0 {
+		gitBranchText = "" // Empty for Phase 1, will be populated in Phase 2
 	}
+	
+	// Build size column with enhanced information
+	sizeText := ""
+	if node.IsProject && node.Project != nil {
+		// Show cache size for projects
+		if node.Project.TotalSize > 0 {
+			sizeText = formatBytes(node.Project.TotalSize)
+		} else {
+			sizeText = "✅ Clean"
+		}
+	} else if node.FileSize > 0 {
+		// Show individual file/directory size with file count for directories
+		sizeText = formatBytes(node.FileSize)
+		if !node.IsFile && node.FileCount > 0 {
+			// Add file count for directories
+			if node.FileCount < 1000 {
+				sizeText += fmt.Sprintf(" (%d files)", node.FileCount)
+			} else {
+				sizeText += " (1000+ files)"
+			}
+		}
+	} else {
+		sizeText = "-"
+	}
+	
+	// Assemble the full line with proper spacing
+	line := fmt.Sprintf("%-*s", colWidths.name, nameText)
+	
+	if colWidths.gitBranch > 0 {
+		line += fmt.Sprintf(" | %-*s", colWidths.gitBranch, gitBranchText)
+	}
+	
+	line += fmt.Sprintf(" | %*s", colWidths.size, sizeText)
+	
+	// Apply styling based on selection and node type
+	if isSelected {
+		line = selectedItemStyle.Render("> " + line)
+	} else if node.IsProject && node.Project != nil && node.Project.ItemCount > 0 {
+		// Highlight projects with cache
+		line = warningStyle.Render(line)
+	} else {
+		line = itemStyle.Render(line)
+	}
+	
+	output.WriteString(line)
 	
 	return output.String()
 }

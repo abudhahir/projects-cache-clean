@@ -26,6 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed depth-limited scanning that was causing underestimation of cache sizes
 - Fixed missing files in deep directory structures (node_modules, etc.)
 - Ensured all cache items are counted correctly for accurate statistics
+- **CRITICAL TUI BUG FIX**: Fixed TUI mode ignoring directory arguments
+  - TUI mode (`--ui ~/Projects`) now correctly scans specified directory
+  - Previously always scanned current directory regardless of argument
+  - Fixed missing rootDir field in model struct and hardcoded path in Init() method
 
 ### Technical Details
 - Enhanced `findProjects()` to skip cache directories during project discovery
