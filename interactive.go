@@ -1550,7 +1550,8 @@ func (m model) renderTreeNode(node *TreeNode, isSelected bool) string {
 	
 	// Apply styling based on selection and node type
 	if isSelected {
-		line = selectedItemStyle.Render("> " + line)
+		// Apply selected styling without adding prefix (to maintain column alignment)
+		line = selectedItemStyle.Render(line)
 	} else if node.IsProject && node.Project != nil && node.Project.ItemCount > 0 {
 		// Highlight projects with cache
 		line = warningStyle.Render(line)
@@ -1579,7 +1580,7 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 	fn := itemStyle.Render
 	if index == m.Index() {
 		fn = func(s ...string) string {
-			return selectedItemStyle.Render("> " + strings.Join(s, " "))
+			return selectedItemStyle.Render(strings.Join(s, " "))
 		}
 	}
 
