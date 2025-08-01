@@ -117,19 +117,12 @@ func main() {
 		maxDepth   = flag.Int("max-depth", 10, "Maximum directory depth to scan")
 		interactive = flag.Bool("interactive", false, "Ask for confirmation before removing each cache")
 		ui         = flag.Bool("ui", false, "Launch interactive TUI mode")
-		webui      = flag.Bool("web", false, "Launch web UI mode")
-		port       = flag.Int("port", 8080, "Port for web UI")
 	)
 	flag.Parse()
 
-	// Launch web UI if requested
-	if *webui {
-		fmt.Println("🌐 Launching Web UI Cache Remover...")
-		if err := runWebUI(*rootDir, *port); err != nil {
-			fmt.Printf("Error running web UI: %v\n", err)
-			os.Exit(1)
-		}
-		return
+	// Handle positional argument for directory
+	if len(flag.Args()) > 0 {
+		*rootDir = flag.Args()[0]
 	}
 
 	// Launch interactive TUI if requested
@@ -168,6 +161,18 @@ func main() {
 	printStats(stats)
 }
 
+func isCacheDirectory(dirName string) bool {
+	// Check if this directory name matches any known cache directory patterns
+	for _, projectType := range projectTypes {
+		for _, cacheDir := range projectType.CacheConfig.Directories {
+			if dirName == cacheDir {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func findProjects(rootDir string, maxDepth int, verbose bool) []string {
 	var projects []string
 	var mu sync.Mutex
@@ -183,6 +188,14 @@ func findProjects(rootDir string, maxDepth int, verbose bool) []string {
 
 		depth := strings.Count(strings.TrimPrefix(path, rootDir), string(os.PathSeparator))
 		if depth > maxDepth {
+			return filepath.SkipDir
+		}
+
+		// Skip descending into cache directories - they're meant to be removed as units
+		if isCacheDirectory(info.Name()) {
+			if verbose {
+				fmt.Printf("⏭️  Skipping cache directory: %s\n", path)
+			}
 			return filepath.SkipDir
 		}
 
@@ -287,6 +300,8 @@ func processProject(projectPath string, dryRun, verbose, interactive bool, stats
 		for _, item := range cacheItems {
 			fmt.Printf("  - %s (%s)\n", item.Path, formatBytes(item.Size))
 		}
+		// Add to stats even in dry-run mode to show potential savings
+		stats.Add(len(cacheItems), totalSize)
 	} else {
 		removedItems, removedSize := removeCacheItems(cacheItems, verbose)
 		if removedItems > 0 {

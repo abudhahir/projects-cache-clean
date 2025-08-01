@@ -2,12 +2,12 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
@@ -264,6 +264,24 @@ func loadProjects(rootDir string) tea.Cmd {
 				return filepath.SkipDir
 			}
 			
+			// Skip descending into cache directories - they're meant to be removed as units
+			dirName := info.Name()
+			shouldSkip := false
+			for _, projectType := range projectTypes {
+				for _, cacheDir := range projectType.CacheConfig.Directories {
+					if dirName == cacheDir {
+						shouldSkip = true
+						break
+					}
+				}
+				if shouldSkip {
+					break
+				}
+			}
+			if shouldSkip {
+				return filepath.SkipDir
+			}
+			
 			if projectType := detectProjectType(path); projectType != nil {
 				cacheItems := findCacheItems(path, projectType.CacheConfig)
 				totalSize := int64(0)
@@ -473,7 +491,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.list, cmd = m.list.Update(msg)
 		cmds = append(cmds, cmd)
 	case StateCleaning:
-		m.progress, cmd = m.progress.Update(msg)
+		var progressModel tea.Model
+		progressModel, cmd = m.progress.Update(msg)
+		if pm, ok := progressModel.(progress.Model); ok {
+			m.progress = pm
+		}
 		cmds = append(cmds, cmd)
 	}
 
@@ -485,9 +507,7 @@ func cleanSelectedProjects(projects []ProjectItem) tea.Cmd {
 		var wg sync.WaitGroup
 		results := CleanupStats{}
 		
-		for i, project := range projects {
-			progress := float64(i) / float64(len(projects))
-			
+		for _, project := range projects {
 			// Send progress update
 			tea.Printf("Cleaning %s...\n", project.Project.Name)
 			
@@ -579,7 +599,7 @@ type itemDelegate struct{}
 func (d itemDelegate) Height() int                             { return 2 }
 func (d itemDelegate) Spacing() int                            { return 1 }
 func (d itemDelegate) Update(_ tea.Msg, _ *list.Model) tea.Cmd { return nil }
-func (d itemDelegate) Render(w tea.Writer, m list.Model, index int, listItem list.Item) {
+func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list.Item) {
 	i, ok := listItem.(ProjectItem)
 	if !ok {
 		return
