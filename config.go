@@ -129,6 +129,8 @@ func getDefaultConfig() Config {
 						// Pipenv
                       ".pipenv", "pipenv-env", "codebase-analyzer-env",
 
+
+
 					},
 					Files:       []string{},
 					Extensions:  []string{".pyc", ".pyo"},
